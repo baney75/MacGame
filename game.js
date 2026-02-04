@@ -1,6 +1,123 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
+// Audio context and sound system
+let audioCtx = null;
+let soundEnabled = true;
+
+function initAudio() {
+  if (audioCtx) return;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  } catch (e) {
+    soundEnabled = false;
+  }
+}
+
+function playTone(frequency, duration, type = "square", volume = 0.15, ramp = true) {
+  if (!audioCtx || !soundEnabled) return;
+  if (audioCtx.state === "suspended") {
+    audioCtx.resume();
+  }
+  
+  const oscillator = audioCtx.createOscillator();
+  const gainNode = audioCtx.createGain();
+  
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+  
+  gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+  if (ramp) {
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  }
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+  
+  oscillator.start(audioCtx.currentTime);
+  oscillator.stop(audioCtx.currentTime + duration);
+}
+
+function playJumpSound() {
+  if (!audioCtx || !soundEnabled) return;
+  // Rising tone for jump
+  playTone(280, 0.08, "square", 0.12);
+  setTimeout(() => playTone(420, 0.1, "square", 0.1), 40);
+}
+
+function playPunchSound() {
+  if (!audioCtx || !soundEnabled) return;
+  // Punchy noise burst
+  const duration = 0.12;
+  const bufferSize = audioCtx.sampleRate * duration;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+  }
+  
+  const noise = audioCtx.createBufferSource();
+  const gainNode = audioCtx.createGain();
+  const filter = audioCtx.createBiquadFilter();
+  
+  noise.buffer = buffer;
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+  gainNode.gain.setValueAtTime(0.25, audioCtx.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  
+  noise.connect(filter);
+  filter.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+  noise.start();
+}
+
+function playOrbSound() {
+  if (!audioCtx || !soundEnabled) return;
+  // Pleasant chime for orb collection
+  playTone(880, 0.08, "sine", 0.1);
+  setTimeout(() => playTone(1100, 0.12, "sine", 0.08), 50);
+}
+
+function playHurtSound() {
+  if (!audioCtx || !soundEnabled) return;
+  // Descending buzzy tone
+  if (audioCtx.state === "suspended") audioCtx.resume();
+  
+  const oscillator = audioCtx.createOscillator();
+  const gainNode = audioCtx.createGain();
+  
+  oscillator.type = "sawtooth";
+  oscillator.frequency.setValueAtTime(300, audioCtx.currentTime);
+  oscillator.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.2);
+  
+  gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+  
+  oscillator.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+  oscillator.start();
+  oscillator.stop(audioCtx.currentTime + 0.25);
+}
+
+function playLevelCompleteSound() {
+  if (!audioCtx || !soundEnabled) return;
+  // Victory fanfare
+  const notes = [523, 659, 784, 1047];
+  notes.forEach((freq, i) => {
+    setTimeout(() => playTone(freq, 0.2, "sine", 0.12), i * 100);
+  });
+}
+
+function playGameOverSound() {
+  if (!audioCtx || !soundEnabled) return;
+  // Sad descending tones
+  const notes = [400, 350, 300, 250];
+  notes.forEach((freq, i) => {
+    setTimeout(() => playTone(freq, 0.25, "triangle", 0.1), i * 120);
+  });
+}
+
 const overlay = document.getElementById("overlay");
 const overlayTitle = document.getElementById("overlay-title");
 const overlayText = document.getElementById("overlay-text");
@@ -334,6 +451,7 @@ function completeLevel() {
   state.running = false;
   state.paused = false;
   state.awaitingNextLevel = true;
+  playLevelCompleteSound();
   const nextLevel = state.level + 1;
   const name = LEVEL_NAMES[(nextLevel - 1) % LEVEL_NAMES.length];
   configureOverlay({
@@ -482,6 +600,7 @@ function handleCollision(obstacle) {
   player.invincible = 1.2;
   state.shake = 0.5;
   showToast("Ouch!" );
+  playHurtSound();
 
   if (state.health <= 0) {
     endGame();
@@ -494,6 +613,7 @@ function collectOrb(orb) {
   state.combo += 1;
   state.fun = Math.min(100, state.fun + 6);
   addParticles(orb.x, orb.y, "#30d6ff");
+  playOrbSound();
 
   if (state.combo % 6 === 0) {
     showToast("Insane Combo!" );
@@ -508,6 +628,9 @@ function endGame() {
   if (state.score > state.best) {
     state.best = Math.floor(state.score);
     localStorage.setItem("macgame_best", state.best);
+    playLevelCompleteSound();
+  } else {
+    playGameOverSound();
   }
 
   configureOverlay({
@@ -543,6 +666,7 @@ function updatePlayer(dt) {
       player.onGround = false;
       player.jumpBuffer = 0;
       player.coyoteTimer = 0;
+      playJumpSound();
     }
   }
 
@@ -862,6 +986,7 @@ function attack() {
   if (player.attackCooldown <= 0) {
     player.attackTimer = ATTACK_DURATION;
     player.attackCooldown = 0.7;
+    playPunchSound();
   }
 }
 
@@ -897,10 +1022,12 @@ function startIfNeeded() {
 
 startBtn.addEventListener("click", () => {
   if (!spritesReady) return;
+  initAudio();
   resetGame();
 });
 
 resumeBtn.addEventListener("click", () => {
+  initAudio();
   if (state.awaitingNextLevel) {
     state.awaitingNextLevel = false;
     setupLevel(state.level + 1, false);
@@ -916,6 +1043,7 @@ window.addEventListener("keydown", (event) => {
   if (event.repeat) return;
   if (event.code === "Space" || event.code === "ArrowUp") {
     event.preventDefault();
+    initAudio();
     if (!state.running) {
       resetGame();
       return;
@@ -924,6 +1052,7 @@ window.addEventListener("keydown", (event) => {
   }
 
   if (event.code === "KeyX") {
+    initAudio();
     attack();
   }
 
@@ -939,6 +1068,7 @@ mobileJump.addEventListener(
   (event) => {
     event.preventDefault();
     if (!spritesReady) return;
+    initAudio();
     if (!startIfNeeded()) jump();
   },
   pointerOptions
@@ -949,6 +1079,7 @@ mobilePunch.addEventListener(
   (event) => {
     event.preventDefault();
     if (!spritesReady) return;
+    initAudio();
     if (!startIfNeeded()) attack();
   },
   pointerOptions
@@ -969,6 +1100,7 @@ canvas.addEventListener(
     if (event.pointerType === "mouse") return;
     event.preventDefault();
     if (!spritesReady) return;
+    initAudio();
     if (!startIfNeeded()) jump();
   },
   pointerOptions

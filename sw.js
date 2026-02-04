@@ -1,4 +1,4 @@
-const CACHE_NAME = "macgame-v8";
+const CACHE_NAME = "macgame-v9";
 const ASSETS = [
   ".",
   "index.html",
@@ -59,7 +59,11 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
           return response;
         })
-        .catch(() => cached);
+        .catch(() => {
+          // Return cached response if available, otherwise return a basic offline response
+          if (cached) return cached;
+          return new Response("Offline", { status: 503, statusText: "Service Unavailable" });
+        });
     })
   );
 });
