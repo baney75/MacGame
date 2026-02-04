@@ -1,4 +1,4 @@
-const CACHE_NAME = "macgame-v6";
+const CACHE_NAME = "macgame-v7";
 const ASSETS = [
   ".",
   "index.html",
