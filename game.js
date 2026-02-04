@@ -1,0 +1,939 @@
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const overlay = document.getElementById("overlay");
+const overlayTitle = document.getElementById("overlay-title");
+const overlayText = document.getElementById("overlay-text");
+const startBtn = document.getElementById("startBtn");
+const resumeBtn = document.getElementById("resumeBtn");
+const toast = document.getElementById("toast");
+const mobileJump = document.getElementById("mobileJump");
+const mobilePunch = document.getElementById("mobilePunch");
+const mobilePause = document.getElementById("mobilePause");
+
+const scoreEl = document.getElementById("score");
+const bestEl = document.getElementById("best");
+const comboEl = document.getElementById("combo");
+const funEl = document.getElementById("fun");
+const levelEl = document.getElementById("level");
+
+const BASE_WIDTH = 960;
+const BASE_HEIGHT = 540;
+const groundY = BASE_HEIGHT - 70;
+
+const spriteSets = {
+  idle: ["sprites/mac_idle.png", "sprites/mac_idle_blink.png"],
+  run: [
+    "sprites/mac_run_1.png",
+    "sprites/mac_run_2.png",
+    "sprites/mac_run_3.png",
+    "sprites/mac_run_4.png"
+  ],
+  jump: ["sprites/mac_jump_1.png", "sprites/mac_jump_2.png", "sprites/mac_jump_3.png"],
+  attack: ["sprites/mac_attack_1.png", "sprites/mac_attack_2.png"],
+  hurt: ["sprites/mac_hurt.png"],
+  victory: ["sprites/mac_victory.png"],
+};
+
+const sprites = {};
+let spritesReady = false;
+
+const LEVEL_BASE_LENGTH = 2200;
+const LEVEL_LENGTH_STEP = 320;
+
+const LEVEL_NAMES = [
+  "Sunrise Sprint",
+  "Neon Harbor",
+  "Skyline Bounce",
+  "Turbo Plaza",
+  "Starlight Circuit",
+];
+
+const segmentTemplates = [
+  {
+    difficulty: 1,
+    length: 360,
+    obstacles: [{ at: 140, type: "ground" }],
+    orbs: [{ at: 200, height: 150 }, { at: 240, height: 150 }],
+  },
+  {
+    difficulty: 1,
+    length: 420,
+    obstacles: [{ at: 160, type: "ground" }, { at: 300, type: "ground" }],
+    orbs: [{ at: 230, height: 200 }],
+  },
+  {
+    difficulty: 2,
+    length: 460,
+    obstacles: [
+      { at: 150, type: "air", y: groundY - 200 },
+      { at: 320, type: "ground" },
+    ],
+    orbs: [{ at: 230, height: 210 }, { at: 360, height: 180 }],
+  },
+  {
+    difficulty: 2,
+    length: 520,
+    obstacles: [
+      { at: 200, type: "ground", width: 70, height: 90 },
+      { at: 360, type: "air", y: groundY - 220 },
+    ],
+    orbs: [{ at: 280, height: 200 }],
+  },
+  {
+    difficulty: 3,
+    length: 560,
+    obstacles: [
+      { at: 160, type: "ground" },
+      { at: 300, type: "ground" },
+      { at: 440, type: "air", y: groundY - 220 },
+    ],
+    orbs: [{ at: 230, height: 210 }, { at: 360, height: 210 }],
+  },
+];
+
+const state = {
+  running: false,
+  paused: false,
+  gameOver: false,
+  score: 0,
+  best: Number(localStorage.getItem("macgame_best")) || 0,
+  bestBefore: 0,
+  combo: 1,
+  fun: 0,
+  health: 3,
+  time: 0,
+  speed: 260,
+  shake: 0,
+  toastTimer: 0,
+  level: 1,
+  distance: 0,
+  levelTarget: LEVEL_BASE_LENGTH,
+  spawnPlan: [],
+  spawnIndex: 0,
+  awaitingNextLevel: false,
+};
+
+const player = {
+  x: 170,
+  y: groundY,
+  vy: 0,
+  width: 170,
+  height: 240,
+  jumpPower: 820,
+  gravity: 1800,
+  onGround: true,
+  attackTimer: 0,
+  attackCooldown: 0,
+  hurtTimer: 0,
+  invincible: 0,
+  jumpBuffer: 0,
+  coyoteTimer: 0,
+};
+
+const JUMP_BUFFER_TIME = 0.12;
+const COYOTE_TIME = 0.12;
+const ATTACK_DURATION = 0.35;
+
+const obstacles = [];
+const orbs = [];
+const particles = [];
+
+function resizeCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.setTransform(canvas.width / BASE_WIDTH, 0, 0, canvas.height / BASE_HEIGHT, 0, 0);
+}
+
+window.addEventListener("resize", resizeCanvas);
+
+function loadSprites() {
+  const entries = Object.entries(spriteSets);
+  let loaded = 0;
+  let total = 0;
+  entries.forEach(([, frames]) => {
+    total += frames.length;
+  });
+  overlayTitle.textContent = "Loading sprites";
+  overlayText.textContent = "Summoning the most fun hero ever.";
+  startBtn.classList.add("hidden");
+
+  entries.forEach(([key, frames]) => {
+    sprites[key] = frames.map((src) => {
+      const img = new Image();
+      img.onload = () => {
+        loaded += 1;
+        if (loaded === total) {
+          spritesReady = true;
+          configureOverlay({
+            title: "Ready?",
+            text: "Jump, punch, and rack up a ridiculous combo.",
+            showStart: true,
+          });
+        }
+      };
+      img.onerror = () => {
+        overlayTitle.textContent = "Sprite load failed";
+        overlayText.textContent = "Check that the sprites folder is present.";
+      };
+      img.src = src;
+      return img;
+    });
+  });
+}
+
+function configureOverlay({ title, text, showStart = false, showResume = false, resumeLabel = "Resume" }) {
+  overlayTitle.textContent = title;
+  overlayText.textContent = text;
+  overlay.classList.remove("hidden");
+  startBtn.classList.toggle("hidden", !showStart);
+  resumeBtn.textContent = resumeLabel;
+  resumeBtn.classList.toggle("hidden", !showResume);
+}
+
+function resetGame() {
+  state.running = true;
+  state.paused = false;
+  state.gameOver = false;
+  state.score = 0;
+  state.combo = 1;
+  state.fun = 0;
+  state.health = 3;
+  state.time = 0;
+  state.speed = 260;
+  state.shake = 0;
+  state.toastTimer = 0;
+  state.bestBefore = state.best;
+  state.awaitingNextLevel = false;
+
+  player.y = groundY;
+  player.vy = 0;
+  player.onGround = true;
+  player.attackTimer = 0;
+  player.attackCooldown = 0;
+  player.hurtTimer = 0;
+  player.invincible = 0;
+  player.jumpBuffer = 0;
+  player.coyoteTimer = 0;
+
+  setupLevel(1, true);
+
+  hideOverlay();
+}
+
+function hideOverlay() {
+  overlay.classList.add("hidden");
+}
+
+function maxDifficultyForLevel(level) {
+  if (level <= 1) return 1;
+  if (level <= 3) return 2;
+  return 3;
+}
+
+function pickSegmentTemplate(level) {
+  const maxDifficulty = maxDifficultyForLevel(level);
+  const pool = segmentTemplates.filter((template) => template.difficulty <= maxDifficulty);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function buildLevelPlan(level) {
+  const target = LEVEL_BASE_LENGTH + (level - 1) * LEVEL_LENGTH_STEP;
+  const spawns = [];
+  let cursor = 0;
+
+  while (cursor < target) {
+    const template = pickSegmentTemplate(level);
+    template.obstacles.forEach((obs) => {
+      spawns.push({
+        at: cursor + obs.at,
+        kind: "obstacle",
+        data: obs,
+      });
+    });
+    template.orbs.forEach((orb) => {
+      spawns.push({
+        at: cursor + orb.at,
+        kind: "orb",
+        data: orb,
+      });
+    });
+    cursor += template.length;
+  }
+
+  spawns.sort((a, b) => a.at - b.at);
+  return { spawns, target };
+}
+
+function setupLevel(level, resetScore) {
+  state.level = level;
+  state.distance = 0;
+  state.spawnIndex = 0;
+  state.awaitingNextLevel = false;
+  const plan = buildLevelPlan(level);
+  state.spawnPlan = plan.spawns;
+  state.levelTarget = plan.target;
+  state.speed = 260 + (level - 1) * 14;
+
+  obstacles.length = 0;
+  orbs.length = 0;
+  particles.length = 0;
+
+  if (resetScore) {
+    state.score = 0;
+    state.combo = 1;
+    state.fun = 0;
+    state.health = 3;
+  }
+}
+
+function completeLevel() {
+  state.running = false;
+  state.paused = false;
+  state.awaitingNextLevel = true;
+  const nextLevel = state.level + 1;
+  const name = LEVEL_NAMES[(nextLevel - 1) % LEVEL_NAMES.length];
+  configureOverlay({
+    title: `Level ${state.level} Clear!`,
+    text: `Next up: ${name}. Ready for Level ${nextLevel}?`,
+    showResume: true,
+    resumeLabel: "Next Level",
+  });
+}
+
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.remove("hidden");
+  state.toastTimer = 1.2;
+}
+
+function updateToast(dt) {
+  if (state.toastTimer > 0) {
+    state.toastTimer -= dt;
+    if (state.toastTimer <= 0) {
+      toast.classList.add("hidden");
+    }
+  }
+}
+
+function createObstacle(options = {}) {
+  const type = options.type || (Math.random() < 0.7 ? "ground" : "air");
+  const height =
+    options.height !== undefined
+      ? options.height
+      : type === "ground"
+        ? 70 + Math.random() * 40
+        : 80;
+  const width =
+    options.width !== undefined ? options.width : type === "ground" ? 50 + Math.random() * 30 : 60;
+  const y =
+    options.y !== undefined
+      ? options.y
+      : type === "ground"
+        ? groundY
+        : groundY - 180 - Math.random() * 80;
+
+  obstacles.push({
+    x: BASE_WIDTH + 60,
+    y,
+    width,
+    height,
+    type,
+    hit: false,
+  });
+}
+
+function createOrb(options = {}) {
+  const height = options.height !== undefined ? options.height : 120 + Math.random() * 140;
+  orbs.push({
+    x: BASE_WIDTH + 60,
+    y: options.y !== undefined ? options.y : groundY - height,
+    radius: 14,
+    collected: false,
+  });
+}
+
+function addParticles(x, y, color) {
+  for (let i = 0; i < 10; i += 1) {
+    particles.push({
+      x,
+      y,
+      vx: (Math.random() - 0.5) * 220,
+      vy: -80 - Math.random() * 220,
+      life: 0.6 + Math.random() * 0.5,
+      color,
+    });
+  }
+}
+
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i -= 1) {
+    const p = particles[i];
+    p.life -= dt;
+    p.vy += 520 * dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    if (p.life <= 0) {
+      particles.splice(i, 1);
+    }
+  }
+}
+
+function playerHitbox() {
+  const width = player.width * 0.6;
+  const height = player.height * 0.72;
+  return {
+    x: player.x - width / 2,
+    y: player.y - height,
+    width,
+    height,
+  };
+}
+
+function obstacleHitbox(obstacle) {
+  const padX = obstacle.width * 0.12;
+  const padY = obstacle.height * 0.12;
+  return {
+    x: obstacle.x + padX,
+    y: obstacle.y - obstacle.height + padY,
+    width: obstacle.width - padX * 2,
+    height: obstacle.height - padY * 2,
+  };
+}
+
+function orbHitbox(orb) {
+  const radius = orb.radius * 1.6;
+  return {
+    x: orb.x - radius,
+    y: orb.y - radius,
+    width: radius * 2,
+    height: radius * 2,
+  };
+}
+
+function rectsOverlap(a, b) {
+  return (
+    a.x < b.x + b.width &&
+    a.x + a.width > b.x &&
+    a.y < b.y + b.height &&
+    a.y + a.height > b.y
+  );
+}
+
+function handleCollision(obstacle) {
+  if (player.invincible > 0 || obstacle.hit) return;
+
+  if (player.attackTimer > 0) {
+    obstacle.hit = true;
+    state.score += 120;
+    state.fun = Math.min(100, state.fun + 12);
+    addParticles(obstacle.x, obstacle.y, "#ff7a2f");
+    showToast("Pow!" );
+    return;
+  }
+
+  state.health -= 1;
+  state.combo = 1;
+  state.fun = Math.max(0, state.fun - 20);
+  player.hurtTimer = 0.4;
+  player.invincible = 1.2;
+  state.shake = 0.5;
+  showToast("Ouch!" );
+
+  if (state.health <= 0) {
+    endGame();
+  }
+}
+
+function collectOrb(orb) {
+  orb.collected = true;
+  state.score += 80 + state.combo * 10;
+  state.combo += 1;
+  state.fun = Math.min(100, state.fun + 6);
+  addParticles(orb.x, orb.y, "#30d6ff");
+
+  if (state.combo % 6 === 0) {
+    showToast("Insane Combo!" );
+  }
+}
+
+function endGame() {
+  state.gameOver = true;
+  state.running = false;
+  state.paused = false;
+  state.awaitingNextLevel = false;
+  if (state.score > state.best) {
+    state.best = Math.floor(state.score);
+    localStorage.setItem("macgame_best", state.best);
+  }
+
+  configureOverlay({
+    title: state.score >= state.bestBefore ? "New High Score!" : "Game Over",
+    text: "Hit Start to chase even more fun.",
+    showStart: true,
+  });
+}
+
+function updatePlayer(dt) {
+  if (!player.onGround) {
+    player.vy += player.gravity * dt;
+  }
+
+  player.y += player.vy * dt;
+
+  if (player.y >= groundY) {
+    player.y = groundY;
+    player.vy = 0;
+    player.onGround = true;
+  }
+
+  if (player.onGround) {
+    player.coyoteTimer = COYOTE_TIME;
+  } else {
+    player.coyoteTimer = Math.max(0, player.coyoteTimer - dt);
+  }
+
+  if (player.jumpBuffer > 0) {
+    player.jumpBuffer = Math.max(0, player.jumpBuffer - dt);
+    if (player.coyoteTimer > 0) {
+      player.vy = -player.jumpPower;
+      player.onGround = false;
+      player.jumpBuffer = 0;
+      player.coyoteTimer = 0;
+    }
+  }
+
+  if (player.attackTimer > 0) {
+    player.attackTimer -= dt;
+  }
+
+  if (player.attackCooldown > 0) {
+    player.attackCooldown -= dt;
+  }
+
+  if (player.hurtTimer > 0) {
+    player.hurtTimer -= dt;
+  }
+
+  if (player.invincible > 0) {
+    player.invincible -= dt;
+  }
+}
+
+function updateObstacles(dt) {
+  for (let i = obstacles.length - 1; i >= 0; i -= 1) {
+    const obs = obstacles[i];
+    obs.x -= state.speed * dt;
+    if (obs.x + obs.width < -40 || obs.hit) {
+      obstacles.splice(i, 1);
+    }
+  }
+}
+
+function updateOrbs(dt) {
+  for (let i = orbs.length - 1; i >= 0; i -= 1) {
+    const orb = orbs[i];
+    orb.x -= state.speed * dt;
+    if (orb.x + orb.radius < -40 || orb.collected) {
+      orbs.splice(i, 1);
+    }
+  }
+}
+
+function updateSpawns() {
+  while (state.spawnIndex < state.spawnPlan.length && state.distance >= state.spawnPlan[state.spawnIndex].at) {
+    const spawn = state.spawnPlan[state.spawnIndex];
+    if (spawn.kind === "obstacle") {
+      createObstacle(spawn.data);
+    } else if (spawn.kind === "orb") {
+      createOrb(spawn.data);
+    }
+    state.spawnIndex += 1;
+  }
+}
+
+function updateScore(dt) {
+  const pace = state.speed / 220;
+  state.score += dt * 14 * pace;
+  state.fun = Math.min(100, state.fun + dt * 4);
+  state.distance += state.speed * dt;
+
+  if (state.combo > 1) {
+    state.fun = Math.min(100, state.fun + dt * state.combo * 0.35);
+  }
+}
+
+function updateGame(dt) {
+  state.time += dt;
+  updateToast(dt);
+  updatePlayer(dt);
+  updateSpawns();
+  updateObstacles(dt);
+  updateOrbs(dt);
+  updateParticles(dt);
+  updateScore(dt);
+
+  if (state.distance >= state.levelTarget) {
+    completeLevel();
+    return;
+  }
+
+  const playerBox = playerHitbox();
+
+  obstacles.forEach((obs) => {
+    const obsBox = obstacleHitbox(obs);
+
+    if (rectsOverlap(playerBox, obsBox)) {
+      handleCollision(obs);
+    }
+  });
+
+  orbs.forEach((orb) => {
+    const orbBox = orbHitbox(orb);
+
+    if (rectsOverlap(playerBox, orbBox)) {
+      collectOrb(orb);
+    }
+  });
+
+  const baseSpeed = 260 + (state.level - 1) * 16;
+  state.speed = baseSpeed + Math.min(160, state.score * 0.12) + state.combo * 2;
+  state.shake = Math.max(0, state.shake - dt);
+}
+
+function drawBackground() {
+  const gradient = ctx.createLinearGradient(0, 0, 0, BASE_HEIGHT);
+  gradient.addColorStop(0, "#1e3760");
+  gradient.addColorStop(1, "#0b1224");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, BASE_WIDTH, BASE_HEIGHT);
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+  for (let i = 0; i < 12; i += 1) {
+    const x = (state.time * 20 + i * 140) % (BASE_WIDTH + 200) - 100;
+    const y = 60 + (i % 3) * 40;
+    ctx.beginPath();
+    ctx.arc(x, y, 30, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = "#162b46";
+  ctx.beginPath();
+  ctx.moveTo(0, groundY + 30);
+  ctx.quadraticCurveTo(200, groundY - 40, 420, groundY + 10);
+  ctx.quadraticCurveTo(640, groundY + 50, 960, groundY);
+  ctx.lineTo(960, BASE_HEIGHT);
+  ctx.lineTo(0, BASE_HEIGHT);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawGround() {
+  ctx.fillStyle = "#0a0f1c";
+  ctx.fillRect(0, groundY, BASE_WIDTH, BASE_HEIGHT - groundY);
+  ctx.strokeStyle = "rgba(255,255,255,0.15)";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(0, groundY);
+  ctx.lineTo(BASE_WIDTH, groundY);
+  ctx.stroke();
+}
+
+function roundedRect(x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+}
+
+function drawObstacles() {
+  obstacles.forEach((obs) => {
+    ctx.fillStyle = obs.type === "ground" ? "#ff7a2f" : "#30d6ff";
+    ctx.strokeStyle = "rgba(0,0,0,0.35)";
+    ctx.lineWidth = 3;
+    roundedRect(obs.x, obs.y - obs.height, obs.width, obs.height, 12);
+  });
+}
+
+function drawOrbs() {
+  orbs.forEach((orb) => {
+    ctx.fillStyle = "rgba(255, 225, 93, 0.95)";
+    ctx.beginPath();
+    ctx.arc(orb.x, orb.y, orb.radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(255,255,255,0.7)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(orb.x, orb.y, orb.radius + 4, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+}
+
+function drawParticles() {
+  particles.forEach((p) => {
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+}
+
+function pickRunFrame(frames) {
+  const speedFactor = Math.min(2.4, Math.max(1, state.speed / 260));
+  const fps = 8 * speedFactor;
+  const index = Math.floor(state.time * fps) % frames.length;
+  return frames[index];
+}
+
+function pickIdleFrame(frames) {
+  const fps = 0.9;
+  const index = Math.floor(state.time * fps) % frames.length;
+  return frames[index];
+}
+
+function pickJumpFrame(frames) {
+  if (player.onGround) return frames[0];
+  if (player.vy < -180) return frames[0];
+  if (player.vy > 180) return frames[2] || frames[frames.length - 1];
+  return frames[1] || frames[0];
+}
+
+function getSpriteFrame(key) {
+  const frames = sprites[key] || [];
+  if (!frames.length) return null;
+  if (frames.length === 1) return frames[0];
+  if (key === "run") return pickRunFrame(frames);
+  if (key === "idle") return pickIdleFrame(frames);
+  if (key === "jump") return pickJumpFrame(frames);
+  if (key === "attack") {
+    const progress = 1 - player.attackTimer / ATTACK_DURATION;
+    const index = progress < 0.5 ? 0 : 1;
+    return frames[index] || frames[0];
+  }
+  return frames[0];
+}
+
+function currentSpriteKey() {
+  if (state.gameOver && state.score >= state.bestBefore) return "victory";
+  if (player.hurtTimer > 0) return "hurt";
+  if (player.attackTimer > 0) return "attack";
+  if (!player.onGround) return "jump";
+  if (state.running) return "run";
+  return "idle";
+}
+
+function drawPlayer() {
+  const key = currentSpriteKey();
+  const sprite = getSpriteFrame(key);
+  if (!sprite) return;
+
+  const drawX = player.x - player.width / 2;
+  const drawY = player.y - player.height;
+
+  if (player.invincible > 0) {
+    ctx.globalAlpha = 0.6 + Math.sin(state.time * 30) * 0.2;
+  }
+
+  ctx.drawImage(sprite, drawX, drawY, player.width, player.height);
+  ctx.globalAlpha = 1;
+}
+
+function drawHUD() {
+  ctx.fillStyle = "rgba(255,255,255,0.75)";
+  ctx.font = "16px Outfit";
+  ctx.fillText(`Lives: ${"❤".repeat(state.health)}`, 22, 30);
+}
+
+function render() {
+  if (state.shake > 0) {
+    const intensity = state.shake * 6;
+    ctx.setTransform(
+      canvas.width / BASE_WIDTH,
+      0,
+      0,
+      canvas.height / BASE_HEIGHT,
+      (Math.random() - 0.5) * intensity,
+      (Math.random() - 0.5) * intensity
+    );
+  } else {
+    ctx.setTransform(canvas.width / BASE_WIDTH, 0, 0, canvas.height / BASE_HEIGHT, 0, 0);
+  }
+
+  drawBackground();
+  drawOrbs();
+  drawObstacles();
+  drawPlayer();
+  drawParticles();
+  drawGround();
+  drawHUD();
+}
+
+function updateHUD() {
+  scoreEl.textContent = Math.floor(state.score).toString();
+  bestEl.textContent = state.best.toString();
+  comboEl.textContent = `x${state.combo}`;
+  funEl.textContent = `${Math.floor(state.fun)}%`;
+  levelEl.textContent = state.level.toString();
+}
+
+let lastTime = 0;
+function loop(timestamp) {
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+  lastTime = timestamp;
+
+  if (state.running && !state.paused) {
+    updateGame(dt);
+  }
+
+  render();
+  updateHUD();
+
+  requestAnimationFrame(loop);
+}
+
+function jump() {
+  if (!state.running || state.paused) return;
+  player.jumpBuffer = JUMP_BUFFER_TIME;
+}
+
+function attack() {
+  if (!state.running || state.paused) return;
+  if (player.attackCooldown <= 0) {
+    player.attackTimer = ATTACK_DURATION;
+    player.attackCooldown = 0.7;
+  }
+}
+
+function togglePause() {
+  if (!state.running) return;
+  state.paused = !state.paused;
+  if (state.paused) {
+    configureOverlay({
+      title: "Paused",
+      text: "Hit Resume or press P to keep the fun going.",
+      showResume: true,
+      resumeLabel: "Resume",
+    });
+  } else {
+    hideOverlay();
+  }
+}
+
+function startIfNeeded() {
+  if (state.awaitingNextLevel) {
+    state.awaitingNextLevel = false;
+    setupLevel(state.level + 1, false);
+    state.running = true;
+    hideOverlay();
+    return true;
+  }
+  if (!state.running) {
+    resetGame();
+    return true;
+  }
+  return false;
+}
+
+startBtn.addEventListener("click", () => {
+  if (!spritesReady) return;
+  resetGame();
+});
+
+resumeBtn.addEventListener("click", () => {
+  if (state.awaitingNextLevel) {
+    state.awaitingNextLevel = false;
+    setupLevel(state.level + 1, false);
+    state.running = true;
+    hideOverlay();
+    return;
+  }
+  state.paused = false;
+  hideOverlay();
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.repeat) return;
+  if (event.code === "Space" || event.code === "ArrowUp") {
+    event.preventDefault();
+    if (!state.running) {
+      resetGame();
+      return;
+    }
+    jump();
+  }
+
+  if (event.code === "KeyX") {
+    attack();
+  }
+
+  if (event.code === "KeyP") {
+    togglePause();
+  }
+});
+
+const pointerOptions = { passive: false };
+
+mobileJump.addEventListener(
+  "pointerdown",
+  (event) => {
+    event.preventDefault();
+    if (!spritesReady) return;
+    if (!startIfNeeded()) jump();
+  },
+  pointerOptions
+);
+
+mobilePunch.addEventListener(
+  "pointerdown",
+  (event) => {
+    event.preventDefault();
+    if (!spritesReady) return;
+    if (!startIfNeeded()) attack();
+  },
+  pointerOptions
+);
+
+mobilePause.addEventListener(
+  "pointerdown",
+  (event) => {
+    event.preventDefault();
+    togglePause();
+  },
+  pointerOptions
+);
+
+canvas.addEventListener(
+  "pointerdown",
+  (event) => {
+    if (event.pointerType === "mouse") return;
+    event.preventDefault();
+    if (!spritesReady) return;
+    if (!startIfNeeded()) jump();
+  },
+  pointerOptions
+);
+
+resizeCanvas();
+loadSprites();
+requestAnimationFrame(loop);
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}

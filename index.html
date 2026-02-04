@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MacGame — The Most Fun Ever</title>
+    <meta name="theme-color" content="#11243d" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="glow"></div>
+    <main class="app">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Insanely Fun Arcade</p>
+          <h1>MacGame</h1>
+          <p class="tagline">Sprint, punch, and scoop up fun orbs in the most fun runner ever made.</p>
+        </div>
+        <div class="stats">
+          <div class="stat">
+            <span class="label">Score</span>
+            <span id="score">0</span>
+          </div>
+          <div class="stat">
+            <span class="label">Best</span>
+            <span id="best">0</span>
+          </div>
+          <div class="stat">
+            <span class="label">Combo</span>
+            <span id="combo">x1</span>
+          </div>
+          <div class="stat">
+            <span class="label">Fun Meter</span>
+            <span id="fun">0%</span>
+          </div>
+          <div class="stat">
+            <span class="label">Level</span>
+            <span id="level">1</span>
+          </div>
+        </div>
+      </header>
+
+      <section class="game-shell">
+        <div class="canvas-wrap">
+          <canvas id="game" aria-label="MacGame playfield"></canvas>
+          <div id="overlay" class="overlay">
+            <div class="panel">
+              <h2 id="overlay-title">Ready?</h2>
+              <p id="overlay-text">Jump, punch, and rack up a ridiculous combo.</p>
+              <button id="startBtn">Start the Madness</button>
+              <button id="resumeBtn" class="ghost hidden">Resume</button>
+            </div>
+          </div>
+          <div id="toast" class="toast hidden">Insane Combo!</div>
+          <div class="mobile-controls" aria-label="Mobile controls">
+            <button class="control jump" id="mobileJump">Jump</button>
+            <button class="control punch" id="mobilePunch">Punch</button>
+            <button class="control pause" id="mobilePause">Pause</button>
+          </div>
+        </div>
+
+        <aside class="controls">
+          <h3>Controls</h3>
+          <ul>
+            <li><span class="key">Space</span> / <span class="key">↑</span> Jump</li>
+            <li><span class="key">X</span> Punch</li>
+            <li><span class="key">P</span> Pause</li>
+          </ul>
+          <p class="tip">Punch obstacles or leap over them. Chain orbs for mega fun.</p>
+        </aside>
+      </section>
+
+      <footer class="footer">
+        <p>Made for GitHub Pages. Drop this folder into a repo and enable Pages.</p>
+      </footer>
+    </main>
+
+    <script src="game.js"></script>
+  </body>
+</html>
