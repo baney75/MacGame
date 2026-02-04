@@ -103,6 +103,7 @@ const state = {
   fun: 0,
   health: 3,
   time: 0,
+  animTime: 0,
   speed: 260,
   shake: 0,
   toastTimer: 0,
@@ -164,6 +165,7 @@ function loadSprites() {
     sprites[key] = frames.map((src) => {
       const img = new Image();
       img.onload = () => {
+        img.__meta = computeSpriteMeta(img);
         loaded += 1;
         if (loaded === total) {
           spritesReady = true;
@@ -184,6 +186,44 @@ function loadSprites() {
   });
 }
 
+function computeSpriteMeta(img) {
+  const w = img.width;
+  const h = img.height;
+  const temp = document.createElement("canvas");
+  temp.width = w;
+  temp.height = h;
+  const tctx = temp.getContext("2d");
+  tctx.drawImage(img, 0, 0);
+  const data = tctx.getImageData(0, 0, w, h).data;
+  let minX = w;
+  let minY = h;
+  let maxX = 0;
+  let maxY = 0;
+  let found = false;
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      const alpha = data[(y * w + x) * 4 + 3];
+      if (alpha > 10) {
+        found = true;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (!found) {
+    return { width: w, height: h, centerX: w / 2, footY: h };
+  }
+
+  return {
+    width: w,
+    height: h,
+    centerX: (minX + maxX) / 2,
+    footY: maxY,
+  };
+}
 function configureOverlay({ title, text, showStart = false, showResume = false, resumeLabel = "Resume" }) {
   overlayTitle.textContent = title;
   overlayText.textContent = text;
@@ -202,6 +242,7 @@ function resetGame() {
   state.fun = 0;
   state.health = 3;
   state.time = 0;
+  state.animTime = 0;
   state.speed = 260;
   state.shake = 0;
   state.toastTimer = 0;
@@ -567,6 +608,7 @@ function updateScore(dt) {
 
 function updateGame(dt) {
   state.time += dt;
+  state.animTime += dt;
   updateToast(dt);
   updatePlayer(dt);
   updateSpawns();
@@ -694,15 +736,15 @@ function drawParticles() {
 }
 
 function pickRunFrame(frames) {
-  const speedFactor = Math.min(2.4, Math.max(1, state.speed / 260));
-  const fps = 8 * speedFactor;
-  const index = Math.floor(state.time * fps) % frames.length;
+  const speedFactor = Math.min(2.2, Math.max(0.9, state.speed / 260));
+  const fps = 10.5 * speedFactor;
+  const index = Math.floor(state.animTime * fps) % frames.length;
   return frames[index];
 }
 
 function pickIdleFrame(frames) {
-  const fps = 0.9;
-  const index = Math.floor(state.time * fps) % frames.length;
+  const fps = 0.6;
+  const index = Math.floor(state.animTime * fps) % frames.length;
   return frames[index];
 }
 
@@ -742,14 +784,18 @@ function drawPlayer() {
   const sprite = getSpriteFrame(key);
   if (!sprite) return;
 
-  const drawX = player.x - player.width / 2;
-  const drawY = player.y - player.height;
+  const meta = sprite.__meta || { width: sprite.width, height: sprite.height, centerX: sprite.width / 2, footY: sprite.height };
+  const scale = player.height / meta.height;
+  const drawX = player.x - meta.centerX * scale;
+  const drawY = player.y - meta.footY * scale;
+  const drawW = meta.width * scale;
+  const drawH = meta.height * scale;
 
   if (player.invincible > 0) {
     ctx.globalAlpha = 0.6 + Math.sin(state.time * 30) * 0.2;
   }
 
-  ctx.drawImage(sprite, drawX, drawY, player.width, player.height);
+  ctx.drawImage(sprite, drawX, drawY, drawW, drawH);
   ctx.globalAlpha = 1;
 }
 
