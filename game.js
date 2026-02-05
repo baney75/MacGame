@@ -118,6 +118,135 @@ function playGameOverSound() {
   });
 }
 
+// Background music system
+let musicEnabled = true;
+let musicPlaying = false;
+let musicGain = null;
+let musicInterval = null;
+
+// Chip-tune style background music
+const musicPatterns = {
+  // Bass line (root notes)
+  bass: [
+    { note: 110, duration: 0.2 },  // A2
+    { note: 110, duration: 0.2 },
+    { note: 147, duration: 0.2 },  // D3
+    { note: 147, duration: 0.2 },
+    { note: 165, duration: 0.2 },  // E3
+    { note: 165, duration: 0.2 },
+    { note: 147, duration: 0.2 },  // D3
+    { note: 131, duration: 0.2 },  // C3
+  ],
+  // Melody (higher notes)
+  melody: [
+    { note: 440, duration: 0.1 },  // A4
+    { note: 0, duration: 0.1 },    // rest
+    { note: 523, duration: 0.1 },  // C5
+    { note: 0, duration: 0.1 },
+    { note: 587, duration: 0.2 },  // D5
+    { note: 523, duration: 0.1 },  // C5
+    { note: 440, duration: 0.1 },  // A4
+    { note: 392, duration: 0.2 },  // G4
+    { note: 440, duration: 0.1 },  // A4
+    { note: 0, duration: 0.1 },
+    { note: 523, duration: 0.2 },  // C5
+    { note: 587, duration: 0.1 },  // D5
+    { note: 659, duration: 0.1 },  // E5
+    { note: 587, duration: 0.2 },  // D5
+    { note: 523, duration: 0.1 },  // C5
+    { note: 440, duration: 0.1 },  // A4
+  ],
+};
+
+let musicBassIndex = 0;
+let musicMelodyIndex = 0;
+let musicBeatTime = 0;
+
+function playMusicNote(frequency, duration, type, volume) {
+  if (!audioCtx || !musicEnabled || frequency === 0) return;
+  if (audioCtx.state === "suspended") audioCtx.resume();
+  
+  const oscillator = audioCtx.createOscillator();
+  const gainNode = audioCtx.createGain();
+  
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+  
+  gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration * 0.9);
+  
+  oscillator.connect(gainNode);
+  if (musicGain) {
+    gainNode.connect(musicGain);
+  } else {
+    gainNode.connect(audioCtx.destination);
+  }
+  
+  oscillator.start(audioCtx.currentTime);
+  oscillator.stop(audioCtx.currentTime + duration);
+}
+
+function musicTick() {
+  if (!musicPlaying || !musicEnabled) return;
+  
+  // Play bass note
+  const bassNote = musicPatterns.bass[musicBassIndex];
+  playMusicNote(bassNote.note, bassNote.duration, "triangle", 0.06);
+  musicBassIndex = (musicBassIndex + 1) % musicPatterns.bass.length;
+  
+  // Play melody note every other beat
+  if (musicBeatTime % 2 === 0) {
+    const melodyNote = musicPatterns.melody[musicMelodyIndex];
+    playMusicNote(melodyNote.note, melodyNote.duration, "square", 0.04);
+    musicMelodyIndex = (musicMelodyIndex + 1) % musicPatterns.melody.length;
+  }
+  
+  musicBeatTime++;
+}
+
+function startMusic() {
+  if (!audioCtx || musicPlaying) return;
+  
+  // Create master gain for music
+  musicGain = audioCtx.createGain();
+  musicGain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+  musicGain.connect(audioCtx.destination);
+  
+  musicPlaying = true;
+  musicBassIndex = 0;
+  musicMelodyIndex = 0;
+  musicBeatTime = 0;
+  
+  // 150 BPM = 400ms per beat
+  musicInterval = setInterval(musicTick, 200);
+}
+
+function stopMusic() {
+  musicPlaying = false;
+  if (musicInterval) {
+    clearInterval(musicInterval);
+    musicInterval = null;
+  }
+}
+
+function toggleMusic() {
+  musicEnabled = !musicEnabled;
+  if (musicEnabled && state.running && !state.paused) {
+    startMusic();
+  } else {
+    stopMusic();
+  }
+  updateMusicButton();
+}
+
+function updateMusicButton() {
+  const musicBtn = document.getElementById("musicBtn");
+  if (musicBtn) {
+    musicBtn.textContent = musicEnabled ? "♪" : "♪̸";
+    musicBtn.classList.toggle("muted", !musicEnabled);
+  }
+}
+
 // Menu elements
 const startMenu = document.getElementById("startMenu");
 const pauseMenu = document.getElementById("pauseMenu");
@@ -266,12 +395,14 @@ const state = {
   best: Number(localStorage.getItem("macgame_best")) || 0,
   bestBefore: 0,
   combo: 1,
+  comboTimer: 0, // Timer for combo decay visual
   fun: 0,
   health: 3,
   time: 0,
   animTime: 0,
   speed: 260,
   shake: 0,
+  hitFlash: 0, // Red flash on hit
   toastTimer: 0,
   level: 1,
   distance: 0,
@@ -279,6 +410,8 @@ const state = {
   spawnPlan: [],
   spawnIndex: 0,
   awaitingNextLevel: false,
+  showTutorial: !localStorage.getItem("macgame_played"), // First time player
+  pendingUpdate: false, // PWA update pending
 };
 
 const player = {
@@ -305,12 +438,48 @@ const ATTACK_DURATION = 0.35;
 const obstacles = [];
 const orbs = [];
 const particles = [];
+const floatingTexts = []; // Floating score popups
+const confetti = []; // Celebration confetti
+
+// Canvas scaling with letterboxing for proper aspect ratio
+let canvasScale = 1;
+let canvasOffsetX = 0;
+let canvasOffsetY = 0;
 
 function resizeCanvas() {
-  const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = rect.width * dpr;
-  canvas.height = rect.height * dpr;
+  const screenWidth = window.innerWidth;
+  const screenHeight = window.innerHeight;
+  
+  // Calculate scale to fit while maintaining aspect ratio
+  const targetRatio = BASE_WIDTH / BASE_HEIGHT;
+  const screenRatio = screenWidth / screenHeight;
+  
+  let drawWidth, drawHeight;
+  
+  if (screenRatio > targetRatio) {
+    // Screen is wider than game - letterbox sides
+    drawHeight = screenHeight;
+    drawWidth = screenHeight * targetRatio;
+  } else {
+    // Screen is taller than game - letterbox top/bottom
+    drawWidth = screenWidth;
+    drawHeight = screenWidth / targetRatio;
+  }
+  
+  // Center the canvas
+  canvasOffsetX = (screenWidth - drawWidth) / 2;
+  canvasOffsetY = (screenHeight - drawHeight) / 2;
+  canvasScale = drawWidth / BASE_WIDTH;
+  
+  // Set canvas size
+  canvas.style.width = drawWidth + 'px';
+  canvas.style.height = drawHeight + 'px';
+  canvas.style.left = canvasOffsetX + 'px';
+  canvas.style.top = canvasOffsetY + 'px';
+  
+  canvas.width = drawWidth * dpr;
+  canvas.height = drawHeight * dpr;
   ctx.setTransform(canvas.width / BASE_WIDTH, 0, 0, canvas.height / BASE_HEIGHT, 0, 0);
 }
 
@@ -447,6 +616,9 @@ function resetGame() {
 
   hideAllMenus();
   showHUD();
+  
+  // Start background music
+  if (musicEnabled) startMusic();
 }
 
 function hideOverlay() {
@@ -520,6 +692,7 @@ function completeLevel() {
   state.paused = false;
   state.awaitingNextLevel = true;
   playLevelCompleteSound();
+  stopMusic();
   
   hideHUD();
   if (levelTitle) levelTitle.textContent = `LEVEL ${state.level} COMPLETE!`;
@@ -528,9 +701,16 @@ function completeLevel() {
 }
 
 function showToast(message) {
+  // Don't show toasts if game is ending (so score is visible)
+  if (state.health <= 0) return;
   toast.textContent = message;
   toast.classList.remove("hidden");
   state.toastTimer = 1.2;
+}
+
+function hideToast() {
+  toast.classList.add("hidden");
+  state.toastTimer = 0;
 }
 
 function updateToast(dt) {
@@ -605,6 +785,123 @@ function updateParticles(dt) {
   }
 }
 
+// Floating score text popups
+function addFloatingText(x, y, text, color = "#fff") {
+  floatingTexts.push({
+    x,
+    y,
+    text,
+    color,
+    life: 1.0,
+    vy: -80,
+  });
+}
+
+function updateFloatingTexts(dt) {
+  for (let i = floatingTexts.length - 1; i >= 0; i -= 1) {
+    const ft = floatingTexts[i];
+    ft.life -= dt;
+    ft.y += ft.vy * dt;
+    ft.vy *= 0.95; // Slow down
+    if (ft.life <= 0) {
+      floatingTexts.splice(i, 1);
+    }
+  }
+}
+
+function drawFloatingTexts() {
+  floatingTexts.forEach((ft) => {
+    ctx.globalAlpha = Math.max(0, ft.life);
+    ctx.fillStyle = ft.color;
+    ctx.font = "bold 24px Outfit, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(ft.text, ft.x, ft.y);
+  });
+  ctx.globalAlpha = 1;
+}
+
+// Confetti for celebrations
+function addConfetti(x, y, count = 30) {
+  const colors = ["#ff7a2f", "#30d6ff", "#ffe15d", "#ff5599", "#44ff88"];
+  for (let i = 0; i < count; i++) {
+    confetti.push({
+      x,
+      y,
+      vx: (Math.random() - 0.5) * 400,
+      vy: -200 - Math.random() * 300,
+      rotation: Math.random() * 360,
+      rotationSpeed: (Math.random() - 0.5) * 720,
+      width: 8 + Math.random() * 8,
+      height: 4 + Math.random() * 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      life: 2 + Math.random(),
+    });
+  }
+}
+
+function updateConfetti(dt) {
+  for (let i = confetti.length - 1; i >= 0; i -= 1) {
+    const c = confetti[i];
+    c.life -= dt;
+    c.vy += 400 * dt; // gravity
+    c.x += c.vx * dt;
+    c.y += c.vy * dt;
+    c.rotation += c.rotationSpeed * dt;
+    c.vx *= 0.99; // air resistance
+    if (c.life <= 0 || c.y > BASE_HEIGHT + 50) {
+      confetti.splice(i, 1);
+    }
+  }
+}
+
+function drawConfetti() {
+  confetti.forEach((c) => {
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    ctx.rotate((c.rotation * Math.PI) / 180);
+    ctx.globalAlpha = Math.min(1, c.life);
+    ctx.fillStyle = c.color;
+    ctx.fillRect(-c.width / 2, -c.height / 2, c.width, c.height);
+    ctx.restore();
+  });
+  ctx.globalAlpha = 1;
+}
+
+// Red flash overlay on hit
+function drawHitFlash() {
+  if (state.hitFlash > 0) {
+    ctx.fillStyle = `rgba(255, 0, 0, ${state.hitFlash * 0.3})`;
+    ctx.fillRect(0, 0, BASE_WIDTH, BASE_HEIGHT);
+  }
+}
+
+// Level progress bar
+function drawProgressBar() {
+  if (!state.running || state.paused) return;
+  
+  const barWidth = 200;
+  const barHeight = 6;
+  const x = (BASE_WIDTH - barWidth) / 2;
+  const y = 20;
+  const progress = Math.min(1, state.distance / state.levelTarget);
+  
+  // Background
+  ctx.fillStyle = "rgba(255,255,255,0.2)";
+  ctx.fillRect(x, y, barWidth, barHeight);
+  
+  // Progress
+  const gradient = ctx.createLinearGradient(x, 0, x + barWidth, 0);
+  gradient.addColorStop(0, "#30d6ff");
+  gradient.addColorStop(1, "#ff7a2f");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(x, y, barWidth * progress, barHeight);
+  
+  // Border
+  ctx.strokeStyle = "rgba(255,255,255,0.4)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, barWidth, barHeight);
+}
+
 function playerHitbox() {
   const width = player.width * 0.6;
   const height = player.height * 0.72;
@@ -651,20 +948,24 @@ function handleCollision(obstacle) {
 
   if (player.attackTimer > 0) {
     obstacle.hit = true;
-    state.score += 120;
+    const points = 120;
+    state.score += points;
     state.fun = Math.min(100, state.fun + 12);
     addParticles(obstacle.x, obstacle.y, "#ff7a2f");
-    showToast("Pow!" );
+    addFloatingText(obstacle.x, obstacle.y - obstacle.height, `+${points}`, "#ff7a2f");
+    showToast("Pow!");
     return;
   }
 
   state.health -= 1;
   state.combo = 1;
+  state.comboTimer = 0;
   state.fun = Math.max(0, state.fun - 20);
   player.hurtTimer = 0.4;
   player.invincible = 1.2;
   state.shake = 0.5;
-  showToast("Ouch!" );
+  state.hitFlash = 0.3; // Red flash
+  showToast("Ouch!");
   playHurtSound();
   updateLivesDisplay();
 
@@ -675,14 +976,17 @@ function handleCollision(obstacle) {
 
 function collectOrb(orb) {
   orb.collected = true;
-  state.score += 80 + state.combo * 10;
+  const points = 80 + state.combo * 10;
+  state.score += points;
   state.combo += 1;
+  state.comboTimer = 2.0; // Reset combo timer
   state.fun = Math.min(100, state.fun + 6);
   addParticles(orb.x, orb.y, "#30d6ff");
+  addFloatingText(orb.x, orb.y - 20, `+${points}`, "#ffe15d");
   playOrbSound();
 
   if (state.combo % 6 === 0) {
-    showToast("Insane Combo!" );
+    showToast("Insane Combo!");
   }
 }
 
@@ -692,21 +996,34 @@ function endGame() {
   state.running = false;
   state.paused = false;
   state.awaitingNextLevel = false;
+  stopMusic();
+  hideToast(); // Clear any toasts so score is visible
   
   const isNewBest = state.score > state.best;
   if (isNewBest) {
     state.best = Math.floor(state.score);
     localStorage.setItem("macgame_best", state.best);
     playLevelCompleteSound();
+    // Celebration confetti for new high score!
+    addConfetti(BASE_WIDTH / 2, BASE_HEIGHT / 3, 50);
   } else {
     playGameOverSound();
   }
+
+  // Mark as played for tutorial
+  localStorage.setItem("macgame_played", "true");
+  state.showTutorial = false;
 
   hideHUD();
   if (gameOverTitle) gameOverTitle.textContent = isNewBest ? "NEW BEST!" : "GAME OVER";
   if (finalScore) finalScore.textContent = Math.floor(state.score);
   if (finalBest) finalBest.textContent = state.best;
   showMenu(gameOverMenu);
+  
+  // Check for pending update
+  if (state.pendingUpdate) {
+    setTimeout(() => window.location.reload(), 2000);
+  }
 }
 
 function updatePlayer(dt) {
@@ -808,7 +1125,22 @@ function updateGame(dt) {
   updateObstacles(dt);
   updateOrbs(dt);
   updateParticles(dt);
+  updateFloatingTexts(dt);
+  updateConfetti(dt);
   updateScore(dt);
+  
+  // Update combo timer
+  if (state.comboTimer > 0) {
+    state.comboTimer -= dt;
+    if (state.comboTimer <= 0 && state.combo > 1) {
+      state.combo = 1; // Reset combo when timer expires
+    }
+  }
+  
+  // Update hit flash
+  if (state.hitFlash > 0) {
+    state.hitFlash -= dt * 2;
+  }
 
   if (state.distance >= state.levelTarget) {
     completeLevel();
@@ -1013,11 +1345,15 @@ function render() {
   }
 
   drawBackground();
+  drawProgressBar();
   drawOrbs();
   drawObstacles();
   drawPlayer();
   drawParticles();
+  drawFloatingTexts();
+  drawConfetti();
   drawGround();
+  drawHitFlash();
   drawHUD();
 }
 
@@ -1033,6 +1369,13 @@ function updateHUD() {
     } else {
       comboDisplay.classList.remove("active");
     }
+  }
+  
+  // Update combo timer bar
+  const comboBar = document.getElementById("comboBar");
+  if (comboBar && state.combo > 1) {
+    const percent = Math.max(0, (state.comboTimer / 2.0) * 100);
+    comboBar.style.width = percent + "%";
   }
 }
 
@@ -1069,9 +1412,11 @@ function togglePause() {
   if (!state.running) return;
   state.paused = !state.paused;
   if (state.paused) {
+    stopMusic();
     hideHUD();
     showMenu(pauseMenu);
   } else {
+    if (musicEnabled) startMusic();
     hideAllMenus();
     showHUD();
   }
@@ -1147,6 +1492,16 @@ if (nextLevelBtn) {
     updateLivesDisplay();
     hideAllMenus();
     showHUD();
+    if (musicEnabled) startMusic();
+  });
+}
+
+// Music toggle button
+const musicBtn = document.getElementById("musicBtn");
+if (musicBtn) {
+  musicBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleMusic();
   });
 }
 
@@ -1220,12 +1575,71 @@ canvas.addEventListener(
   pointerOptions
 );
 
+// Auto-pause when tab loses focus
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && state.running && !state.paused) {
+    togglePause();
+  }
+});
+
+// Auto-pause when window loses focus
+window.addEventListener("blur", () => {
+  if (state.running && !state.paused) {
+    togglePause();
+  }
+});
+
 resizeCanvas();
 loadSprites();
 requestAnimationFrame(loop);
 
+// Service Worker with auto-update
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
+    navigator.serviceWorker.register("sw.js").then((registration) => {
+      // Check for updates every 30 seconds when online
+      setInterval(() => {
+        if (navigator.onLine) {
+          registration.update();
+        }
+      }, 30000);
+      
+      // Listen for new service worker installing
+      registration.addEventListener("updatefound", () => {
+        const newWorker = registration.installing;
+        if (newWorker) {
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              // New version available - auto-reload when not playing
+              if (!state.running) {
+                window.location.reload();
+              } else {
+                // Store that update is pending, reload when game ends or pauses
+                state.pendingUpdate = true;
+              }
+            }
+          });
+        }
+      });
+    }).catch(() => {});
+    
+    // Listen for messages from service worker
+    navigator.serviceWorker.addEventListener("message", (event) => {
+      if (event.data && event.data.type === "SW_UPDATED") {
+        // New version activated, reload if not playing
+        if (!state.running) {
+          window.location.reload();
+        } else {
+          state.pendingUpdate = true;
+        }
+      }
+    });
+  });
+  
+  // Reload on update when returning to start menu
+  window.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && state.pendingUpdate && !state.running) {
+      window.location.reload();
+    }
   });
 }

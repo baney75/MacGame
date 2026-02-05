@@ -89,6 +89,24 @@ html, body {
   opacity: 1;
 }
 
+.hud-combo .combo-bar {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50px;
+  height: 3px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.hud-combo .combo-bar-fill {
+  height: 100%;
+  background: var(--orange);
+  transition: width 0.1s linear;
+}
+
 .hud-level {
   font-size: clamp(1rem, 3vw, 1.5rem);
   font-weight: 700;
@@ -107,6 +125,36 @@ html, body {
   top: calc(50px + var(--safe-top));
   left: calc(12px + var(--safe-left));
   font-size: 1.2rem;
+}
+
+.hud-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hud-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: 1.1rem;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 0.1s, opacity 0.1s;
+}
+
+.hud-btn:active {
+  transform: scale(0.9);
+}
+
+.music-btn.muted {
+  opacity: 0.4;
+  text-decoration: line-through;
 }
 
 /* ============================================
@@ -229,6 +277,35 @@ html, body {
   color: rgba(255,255,255,0.5);
   text-transform: uppercase;
   letter-spacing: 0.1em;
+}
+
+/* Tutorial hints on start menu */
+.tutorial-hints {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 40px;
+  flex-wrap: wrap;
+}
+
+.hint {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.6);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.key {
+  display: inline-block;
+  padding: 4px 10px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.9rem;
+  color: var(--cyan);
 }
 
 .final-score {

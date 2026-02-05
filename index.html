@@ -23,9 +23,13 @@
     </div>
     <div class="hud-combo" id="comboDisplay">
       <span id="combo">x1</span>
+      <div class="combo-bar"><div class="combo-bar-fill" id="comboBar"></div></div>
     </div>
-    <div class="hud-level">
-      <span id="level">1</span>
+    <div class="hud-right">
+      <button id="musicBtn" class="hud-btn music-btn">♪</button>
+      <div class="hud-level">
+        <span id="level">1</span>
+      </div>
     </div>
     <div class="hud-lives" id="livesDisplay"></div>
   </div>
@@ -38,6 +42,11 @@
       <button id="playBtn" class="play-btn">PLAY</button>
       <div class="high-score">
         BEST: <span id="menuBest">0</span>
+      </div>
+      <div id="tutorialHints" class="tutorial-hints">
+        <div class="hint"><span class="key">SPACE</span> Jump</div>
+        <div class="hint"><span class="key">X</span> Punch</div>
+        <div class="hint"><span class="key">P</span> Pause</div>
       </div>
     </div>
   </div>
