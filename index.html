@@ -1,86 +1,92 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <title>MacGame</title>
-    <meta name="theme-color" content="#0b1320" />
-    <link rel="manifest" href="manifest.json" />
-    <link rel="apple-touch-icon" href="icons/icon-192.png" />
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <!-- Full-screen game container -->
-    <div class="game-container">
-      <canvas id="game" aria-label="MacGame playfield"></canvas>
-      
-      <!-- Floating HUD - overlays on game -->
-      <div class="hud">
-        <div class="hud-left">
-          <div class="hud-item score-display">
-            <span class="hud-value" id="score">0</span>
-            <span class="hud-label">SCORE</span>
-          </div>
-          <div class="hud-item combo-display">
-            <span class="hud-value" id="combo">x1</span>
-            <span class="hud-label">COMBO</span>
-          </div>
-        </div>
-        <div class="hud-center">
-          <div class="hud-item level-display">
-            <span class="hud-label">LEVEL</span>
-            <span class="hud-value" id="level">1</span>
-          </div>
-        </div>
-        <div class="hud-right">
-          <div class="hud-item best-display">
-            <span class="hud-value" id="best">0</span>
-            <span class="hud-label">BEST</span>
-          </div>
-          <div class="hud-item fun-display">
-            <span class="hud-value" id="fun">0%</span>
-            <span class="hud-label">FUN</span>
-          </div>
-        </div>
-      </div>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0a0f1c">
+  <title>MacGame</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- THE GAME - Full screen canvas -->
+  <canvas id="game"></canvas>
 
-      <!-- Game overlay (start/pause/game over screens) -->
-      <div id="overlay" class="overlay">
-        <div class="panel">
-          <h1 class="panel-title" id="overlay-title">MacGame</h1>
-          <p class="panel-text" id="overlay-text">Jump, punch, and rack up an insane combo!</p>
-          <button id="startBtn" class="btn-primary">Play</button>
-          <button id="resumeBtn" class="btn-secondary hidden">Resume</button>
-          <div class="controls-hint desktop-only">
-            <span><kbd>Space</kbd> Jump</span>
-            <span><kbd>X</kbd> Punch</span>
-            <span><kbd>P</kbd> Pause</span>
-          </div>
-        </div>
-      </div>
+  <!-- MINIMAL HUD - Just essential info, positioned in corners -->
+  <div id="hud" class="hud hidden">
+    <div class="hud-score">
+      <span id="score">0</span>
+    </div>
+    <div class="hud-combo" id="comboDisplay">
+      <span id="combo">x1</span>
+    </div>
+    <div class="hud-level">
+      <span id="level">1</span>
+    </div>
+    <div class="hud-lives" id="livesDisplay"></div>
+  </div>
 
-      <!-- Toast notifications -->
-      <div id="toast" class="toast hidden">Insane Combo!</div>
-
-      <!-- Mobile controls - positioned at edges -->
-      <div class="mobile-controls" aria-label="Mobile controls">
-        <button class="mobile-btn jump-btn" id="mobileJump">
-          <span class="btn-icon">^</span>
-          <span class="btn-text">JUMP</span>
-        </button>
-        <button class="mobile-btn punch-btn" id="mobilePunch">
-          <span class="btn-icon">!</span>
-          <span class="btn-text">PUNCH</span>
-        </button>
-        <button class="mobile-btn pause-btn" id="mobilePause">
-          <span class="btn-icon">||</span>
-        </button>
+  <!-- START MENU - Game title screen -->
+  <div id="startMenu" class="menu">
+    <div class="menu-content">
+      <h1 class="game-title">MacGame</h1>
+      <p class="game-subtitle">The Most Fun Ever</p>
+      <button id="playBtn" class="play-btn">PLAY</button>
+      <div class="high-score">
+        BEST: <span id="menuBest">0</span>
       </div>
     </div>
+  </div>
 
-    <script src="game.js"></script>
-  </body>
+  <!-- PAUSE MENU -->
+  <div id="pauseMenu" class="menu hidden">
+    <div class="menu-content">
+      <h2 class="menu-title">PAUSED</h2>
+      <button id="resumeBtn" class="menu-btn">RESUME</button>
+      <button id="quitBtn" class="menu-btn secondary">QUIT</button>
+    </div>
+  </div>
+
+  <!-- GAME OVER SCREEN -->
+  <div id="gameOverMenu" class="menu hidden">
+    <div class="menu-content">
+      <h2 class="menu-title" id="gameOverTitle">GAME OVER</h2>
+      <div class="final-score">
+        <span class="score-label">SCORE</span>
+        <span class="score-value" id="finalScore">0</span>
+      </div>
+      <div class="best-score">
+        BEST: <span id="finalBest">0</span>
+      </div>
+      <button id="retryBtn" class="play-btn">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <!-- LEVEL COMPLETE SCREEN -->
+  <div id="levelComplete" class="menu hidden">
+    <div class="menu-content">
+      <h2 class="menu-title level-title" id="levelTitle">LEVEL 1 COMPLETE!</h2>
+      <div class="level-score">
+        SCORE: <span id="levelScore">0</span>
+      </div>
+      <button id="nextLevelBtn" class="play-btn">NEXT LEVEL</button>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- MOBILE CONTROLS -->
+  <div id="mobileControls" class="touch-controls hidden">
+    <button id="mobileJump" class="touch-btn jump-btn"></button>
+    <button id="mobilePunch" class="touch-btn punch-btn"></button>
+    <button id="mobilePause" class="touch-btn pause-btn"></button>
+  </div>
+
+  <script src="game.js"></script>
+</body>
 </html>

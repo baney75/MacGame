@@ -118,21 +118,36 @@ function playGameOverSound() {
   });
 }
 
-const overlay = document.getElementById("overlay");
-const overlayTitle = document.getElementById("overlay-title");
-const overlayText = document.getElementById("overlay-text");
-const startBtn = document.getElementById("startBtn");
+// Menu elements
+const startMenu = document.getElementById("startMenu");
+const pauseMenu = document.getElementById("pauseMenu");
+const gameOverMenu = document.getElementById("gameOverMenu");
+const levelComplete = document.getElementById("levelComplete");
+const hud = document.getElementById("hud");
+const mobileControls = document.getElementById("mobileControls");
+
+const playBtn = document.getElementById("playBtn");
 const resumeBtn = document.getElementById("resumeBtn");
+const quitBtn = document.getElementById("quitBtn");
+const retryBtn = document.getElementById("retryBtn");
+const nextLevelBtn = document.getElementById("nextLevelBtn");
+
 const toast = document.getElementById("toast");
 const mobileJump = document.getElementById("mobileJump");
 const mobilePunch = document.getElementById("mobilePunch");
 const mobilePause = document.getElementById("mobilePause");
 
 const scoreEl = document.getElementById("score");
-const bestEl = document.getElementById("best");
 const comboEl = document.getElementById("combo");
-const funEl = document.getElementById("fun");
+const comboDisplay = document.getElementById("comboDisplay");
 const levelEl = document.getElementById("level");
+const livesDisplay = document.getElementById("livesDisplay");
+const menuBest = document.getElementById("menuBest");
+const finalScore = document.getElementById("finalScore");
+const finalBest = document.getElementById("finalBest");
+const gameOverTitle = document.getElementById("gameOverTitle");
+const levelTitle = document.getElementById("levelTitle");
+const levelScore = document.getElementById("levelScore");
 
 const BASE_WIDTH = 960;
 const BASE_HEIGHT = 540;
@@ -155,8 +170,8 @@ const spriteSets = {
 const sprites = {};
 let spritesReady = false;
 
-const LEVEL_BASE_LENGTH = 2200;
-const LEVEL_LENGTH_STEP = 320;
+const LEVEL_BASE_LENGTH = 2500;
+const LEVEL_LENGTH_STEP = 400;
 
 const LEVEL_NAMES = [
   "Sunrise Sprint",
@@ -166,46 +181,79 @@ const LEVEL_NAMES = [
   "Starlight Circuit",
 ];
 
+// Improved level design with more varied patterns
 const segmentTemplates = [
+  // Easy patterns - single obstacles with generous spacing
   {
     difficulty: 1,
-    length: 480,
-    obstacles: [{ at: 200, type: "ground" }],
-    orbs: [{ at: 280, height: 150 }, { at: 360, height: 150 }],
+    length: 550,
+    obstacles: [{ at: 250, type: "ground" }],
+    orbs: [{ at: 350, height: 140 }, { at: 420, height: 140 }, { at: 490, height: 140 }],
   },
   {
     difficulty: 1,
-    length: 580,
-    obstacles: [{ at: 200, type: "ground" }, { at: 420, type: "ground" }],
-    orbs: [{ at: 310, height: 200 }],
+    length: 600,
+    obstacles: [{ at: 280, type: "ground", width: 60, height: 80 }],
+    orbs: [{ at: 400, height: 180 }, { at: 500, height: 120 }],
   },
+  // Medium patterns - two obstacles, varied heights
   {
-    difficulty: 2,
-    length: 620,
-    obstacles: [
-      { at: 200, type: "air", y: groundY - 200 },
-      { at: 440, type: "ground" },
-    ],
-    orbs: [{ at: 320, height: 210 }, { at: 520, height: 180 }],
-  },
-  {
-    difficulty: 2,
+    difficulty: 1,
     length: 700,
+    obstacles: [{ at: 250, type: "ground" }, { at: 500, type: "ground" }],
+    orbs: [{ at: 375, height: 200 }],
+  },
+  {
+    difficulty: 2,
+    length: 750,
     obstacles: [
-      { at: 240, type: "ground", width: 70, height: 90 },
-      { at: 500, type: "air", y: groundY - 220 },
+      { at: 280, type: "air", y: groundY - 180 },
+      { at: 550, type: "ground" },
     ],
-    orbs: [{ at: 370, height: 200 }],
+    orbs: [{ at: 400, height: 100 }, { at: 650, height: 180 }],
+  },
+  {
+    difficulty: 2,
+    length: 800,
+    obstacles: [
+      { at: 300, type: "ground", width: 80, height: 100 },
+      { at: 580, type: "air", y: groundY - 200 },
+    ],
+    orbs: [{ at: 440, height: 200 }, { at: 700, height: 140 }],
+  },
+  // Hard patterns - three obstacles, require skill
+  {
+    difficulty: 3,
+    length: 900,
+    obstacles: [
+      { at: 250, type: "ground" },
+      { at: 480, type: "air", y: groundY - 190 },
+      { at: 720, type: "ground" },
+    ],
+    orbs: [{ at: 360, height: 200 }, { at: 600, height: 100 }, { at: 820, height: 180 }],
   },
   {
     difficulty: 3,
-    length: 800,
+    length: 950,
     obstacles: [
-      { at: 200, type: "ground" },
-      { at: 420, type: "ground" },
-      { at: 640, type: "air", y: groundY - 220 },
+      { at: 280, type: "ground", width: 70, height: 90 },
+      { at: 520, type: "ground" },
+      { at: 760, type: "air", y: groundY - 210 },
     ],
-    orbs: [{ at: 310, height: 210 }, { at: 530, height: 210 }],
+    orbs: [{ at: 400, height: 220 }, { at: 640, height: 180 }],
+  },
+  // Orb bonanza - fewer obstacles, lots of orbs
+  {
+    difficulty: 1,
+    length: 650,
+    obstacles: [{ at: 320, type: "ground" }],
+    orbs: [
+      { at: 180, height: 120 },
+      { at: 240, height: 160 },
+      { at: 420, height: 140 },
+      { at: 480, height: 180 },
+      { at: 540, height: 200 },
+    ],
   },
 ];
 
@@ -275,9 +323,6 @@ function loadSprites() {
   entries.forEach(([, frames]) => {
     total += frames.length;
   });
-  overlayTitle.textContent = "Loading sprites";
-  overlayText.textContent = "Summoning the most fun hero ever.";
-  startBtn.classList.add("hidden");
 
   entries.forEach(([key, frames]) => {
     sprites[key] = frames.map((src) => {
@@ -287,16 +332,12 @@ function loadSprites() {
         loaded += 1;
         if (loaded === total) {
           spritesReady = true;
-          configureOverlay({
-            title: "Ready?",
-            text: "Jump, punch, and rack up a ridiculous combo.",
-            showStart: true,
-          });
+          // Update menu with best score
+          if (menuBest) menuBest.textContent = state.best;
         }
       };
       img.onerror = () => {
-        overlayTitle.textContent = "Sprite load failed";
-        overlayText.textContent = "Check that the sprites folder is present.";
+        console.error("Failed to load sprite:", src);
       };
       img.src = src;
       return img;
@@ -343,12 +384,36 @@ function computeSpriteMeta(img) {
   };
 }
 function configureOverlay({ title, text, showStart = false, showResume = false, resumeLabel = "Resume" }) {
-  overlayTitle.textContent = title;
-  overlayText.textContent = text;
-  overlay.classList.remove("hidden");
-  startBtn.classList.toggle("hidden", !showStart);
-  resumeBtn.textContent = resumeLabel;
-  resumeBtn.classList.toggle("hidden", !showResume);
+  // Legacy function - kept for compatibility but now using new menus
+}
+
+// New menu system
+function showMenu(menuElement) {
+  hideAllMenus();
+  if (menuElement) menuElement.classList.remove("hidden");
+}
+
+function hideAllMenus() {
+  if (startMenu) startMenu.classList.add("hidden");
+  if (pauseMenu) pauseMenu.classList.add("hidden");
+  if (gameOverMenu) gameOverMenu.classList.add("hidden");
+  if (levelComplete) levelComplete.classList.add("hidden");
+}
+
+function showHUD() {
+  if (hud) hud.classList.remove("hidden");
+  if (mobileControls) mobileControls.classList.remove("hidden");
+}
+
+function hideHUD() {
+  if (hud) hud.classList.add("hidden");
+  if (mobileControls) mobileControls.classList.add("hidden");
+}
+
+function updateLivesDisplay() {
+  if (livesDisplay) {
+    livesDisplay.textContent = "❤".repeat(state.health);
+  }
 }
 
 function resetGame() {
@@ -378,12 +443,14 @@ function resetGame() {
   player.coyoteTimer = 0;
 
   setupLevel(1, true);
+  updateLivesDisplay();
 
-  hideOverlay();
+  hideAllMenus();
+  showHUD();
 }
 
 function hideOverlay() {
-  overlay.classList.add("hidden");
+  hideAllMenus();
 }
 
 function maxDifficultyForLevel(level) {
@@ -453,14 +520,11 @@ function completeLevel() {
   state.paused = false;
   state.awaitingNextLevel = true;
   playLevelCompleteSound();
-  const nextLevel = state.level + 1;
-  const name = LEVEL_NAMES[(nextLevel - 1) % LEVEL_NAMES.length];
-  configureOverlay({
-    title: `Level ${state.level} Clear!`,
-    text: `Next up: ${name}. Ready for Level ${nextLevel}?`,
-    showResume: true,
-    resumeLabel: "Next Level",
-  });
+  
+  hideHUD();
+  if (levelTitle) levelTitle.textContent = `LEVEL ${state.level} COMPLETE!`;
+  if (levelScore) levelScore.textContent = Math.floor(state.score);
+  showMenu(levelComplete);
 }
 
 function showToast(message) {
@@ -602,6 +666,7 @@ function handleCollision(obstacle) {
   state.shake = 0.5;
   showToast("Ouch!" );
   playHurtSound();
+  updateLivesDisplay();
 
   if (state.health <= 0) {
     endGame();
@@ -627,7 +692,9 @@ function endGame() {
   state.running = false;
   state.paused = false;
   state.awaitingNextLevel = false;
-  if (state.score > state.best) {
+  
+  const isNewBest = state.score > state.best;
+  if (isNewBest) {
     state.best = Math.floor(state.score);
     localStorage.setItem("macgame_best", state.best);
     playLevelCompleteSound();
@@ -635,11 +702,11 @@ function endGame() {
     playGameOverSound();
   }
 
-  configureOverlay({
-    title: state.score >= state.bestBefore ? "New High Score!" : "Game Over",
-    text: "Hit Start to chase even more fun.",
-    showStart: true,
-  });
+  hideHUD();
+  if (gameOverTitle) gameOverTitle.textContent = isNewBest ? "NEW BEST!" : "GAME OVER";
+  if (finalScore) finalScore.textContent = Math.floor(state.score);
+  if (finalBest) finalBest.textContent = state.best;
+  showMenu(gameOverMenu);
 }
 
 function updatePlayer(dt) {
@@ -926,9 +993,8 @@ function drawPlayer() {
 }
 
 function drawHUD() {
-  ctx.fillStyle = "rgba(255,255,255,0.75)";
-  ctx.font = "16px Outfit";
-  ctx.fillText(`Lives: ${"❤".repeat(state.health)}`, 22, 30);
+  // HUD is now rendered via HTML overlay, not canvas
+  // Keep this function for compatibility but do nothing
 }
 
 function render() {
@@ -956,11 +1022,18 @@ function render() {
 }
 
 function updateHUD() {
-  scoreEl.textContent = Math.floor(state.score).toString();
-  bestEl.textContent = state.best.toString();
-  comboEl.textContent = `x${state.combo}`;
-  funEl.textContent = `${Math.floor(state.fun)}%`;
-  levelEl.textContent = state.level.toString();
+  if (scoreEl) scoreEl.textContent = Math.floor(state.score);
+  if (comboEl) comboEl.textContent = `x${state.combo}`;
+  if (levelEl) levelEl.textContent = state.level;
+  
+  // Show/hide combo display based on combo value
+  if (comboDisplay) {
+    if (state.combo > 1) {
+      comboDisplay.classList.add("active");
+    } else {
+      comboDisplay.classList.remove("active");
+    }
+  }
 }
 
 let lastTime = 0;
@@ -996,14 +1069,11 @@ function togglePause() {
   if (!state.running) return;
   state.paused = !state.paused;
   if (state.paused) {
-    configureOverlay({
-      title: "Paused",
-      text: "Hit Resume or press P to keep the fun going.",
-      showResume: true,
-      resumeLabel: "Resume",
-    });
+    hideHUD();
+    showMenu(pauseMenu);
   } else {
-    hideOverlay();
+    hideAllMenus();
+    showHUD();
   }
 }
 
@@ -1012,8 +1082,14 @@ function startIfNeeded() {
     state.awaitingNextLevel = false;
     setupLevel(state.level + 1, false);
     state.running = true;
-    hideOverlay();
+    updateLivesDisplay();
+    hideAllMenus();
+    showHUD();
     return true;
+  }
+  if (!state.running && pauseMenu && !pauseMenu.classList.contains("hidden")) {
+    // We're on pause menu, don't start
+    return false;
   }
   if (!state.running) {
     resetGame();
@@ -1022,24 +1098,57 @@ function startIfNeeded() {
   return false;
 }
 
-startBtn.addEventListener("click", () => {
-  if (!spritesReady) return;
-  initAudio();
-  resetGame();
-});
+// Play button (start menu)
+if (playBtn) {
+  playBtn.addEventListener("click", () => {
+    if (!spritesReady) return;
+    initAudio();
+    resetGame();
+  });
+}
 
-resumeBtn.addEventListener("click", () => {
-  initAudio();
-  if (state.awaitingNextLevel) {
+// Resume button (pause menu)
+if (resumeBtn) {
+  resumeBtn.addEventListener("click", () => {
+    initAudio();
+    state.paused = false;
+    hideAllMenus();
+    showHUD();
+  });
+}
+
+// Quit button (pause menu)
+if (quitBtn) {
+  quitBtn.addEventListener("click", () => {
+    state.running = false;
+    state.paused = false;
+    hideAllMenus();
+    hideHUD();
+    if (menuBest) menuBest.textContent = state.best;
+    showMenu(startMenu);
+  });
+}
+
+// Retry button (game over)
+if (retryBtn) {
+  retryBtn.addEventListener("click", () => {
+    initAudio();
+    resetGame();
+  });
+}
+
+// Next level button
+if (nextLevelBtn) {
+  nextLevelBtn.addEventListener("click", () => {
+    initAudio();
     state.awaitingNextLevel = false;
     setupLevel(state.level + 1, false);
     state.running = true;
-    hideOverlay();
-    return;
-  }
-  state.paused = false;
-  hideOverlay();
-});
+    updateLivesDisplay();
+    hideAllMenus();
+    showHUD();
+  });
+}
 
 window.addEventListener("keydown", (event) => {
   if (event.repeat) return;
