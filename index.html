@@ -6,79 +6,80 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <title>MacGame — The Most Fun Ever</title>
-    <meta name="theme-color" content="#11243d" />
+    <title>MacGame</title>
+    <meta name="theme-color" content="#0b1320" />
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="glow"></div>
-    <main class="app">
-      <header class="hero">
-        <div>
-          <p class="eyebrow">Insanely Fun Arcade</p>
-          <h1>MacGame</h1>
-          <p class="tagline">Sprint, punch, and scoop up fun orbs in the most fun runner ever made.</p>
-        </div>
-        <div class="stats">
-          <div class="stat">
-            <span class="label">Score</span>
-            <span id="score">0</span>
+    <!-- Full-screen game container -->
+    <div class="game-container">
+      <canvas id="game" aria-label="MacGame playfield"></canvas>
+      
+      <!-- Floating HUD - overlays on game -->
+      <div class="hud">
+        <div class="hud-left">
+          <div class="hud-item score-display">
+            <span class="hud-value" id="score">0</span>
+            <span class="hud-label">SCORE</span>
           </div>
-          <div class="stat">
-            <span class="label">Best</span>
-            <span id="best">0</span>
-          </div>
-          <div class="stat">
-            <span class="label">Combo</span>
-            <span id="combo">x1</span>
-          </div>
-          <div class="stat">
-            <span class="label">Fun Meter</span>
-            <span id="fun">0%</span>
-          </div>
-          <div class="stat">
-            <span class="label">Level</span>
-            <span id="level">1</span>
+          <div class="hud-item combo-display">
+            <span class="hud-value" id="combo">x1</span>
+            <span class="hud-label">COMBO</span>
           </div>
         </div>
-      </header>
-
-      <section class="game-shell">
-        <div class="canvas-wrap">
-          <canvas id="game" aria-label="MacGame playfield"></canvas>
-          <div id="overlay" class="overlay">
-            <div class="panel">
-              <h2 id="overlay-title">Ready?</h2>
-              <p id="overlay-text">Jump, punch, and rack up a ridiculous combo.</p>
-              <button id="startBtn">Start the Madness</button>
-              <button id="resumeBtn" class="ghost hidden">Resume</button>
-            </div>
-          </div>
-          <div id="toast" class="toast hidden">Insane Combo!</div>
-          <div class="mobile-controls" aria-label="Mobile controls">
-            <button class="control jump" id="mobileJump">Jump</button>
-            <button class="control punch" id="mobilePunch">Punch</button>
-            <button class="control pause" id="mobilePause">Pause</button>
+        <div class="hud-center">
+          <div class="hud-item level-display">
+            <span class="hud-label">LEVEL</span>
+            <span class="hud-value" id="level">1</span>
           </div>
         </div>
+        <div class="hud-right">
+          <div class="hud-item best-display">
+            <span class="hud-value" id="best">0</span>
+            <span class="hud-label">BEST</span>
+          </div>
+          <div class="hud-item fun-display">
+            <span class="hud-value" id="fun">0%</span>
+            <span class="hud-label">FUN</span>
+          </div>
+        </div>
+      </div>
 
-        <aside class="controls">
-          <h3>Controls</h3>
-          <ul>
-            <li><span class="key">Space</span> / <span class="key">↑</span> Jump</li>
-            <li><span class="key">X</span> Punch</li>
-            <li><span class="key">P</span> Pause</li>
-          </ul>
-          <p class="tip">Punch obstacles or leap over them. Chain orbs for mega fun.</p>
-        </aside>
-      </section>
+      <!-- Game overlay (start/pause/game over screens) -->
+      <div id="overlay" class="overlay">
+        <div class="panel">
+          <h1 class="panel-title" id="overlay-title">MacGame</h1>
+          <p class="panel-text" id="overlay-text">Jump, punch, and rack up an insane combo!</p>
+          <button id="startBtn" class="btn-primary">Play</button>
+          <button id="resumeBtn" class="btn-secondary hidden">Resume</button>
+          <div class="controls-hint desktop-only">
+            <span><kbd>Space</kbd> Jump</span>
+            <span><kbd>X</kbd> Punch</span>
+            <span><kbd>P</kbd> Pause</span>
+          </div>
+        </div>
+      </div>
 
-      <footer class="footer">
-        <p>Made for GitHub Pages. Drop this folder into a repo and enable Pages.</p>
-      </footer>
-    </main>
+      <!-- Toast notifications -->
+      <div id="toast" class="toast hidden">Insane Combo!</div>
+
+      <!-- Mobile controls - positioned at edges -->
+      <div class="mobile-controls" aria-label="Mobile controls">
+        <button class="mobile-btn jump-btn" id="mobileJump">
+          <span class="btn-icon">^</span>
+          <span class="btn-text">JUMP</span>
+        </button>
+        <button class="mobile-btn punch-btn" id="mobilePunch">
+          <span class="btn-icon">!</span>
+          <span class="btn-text">PUNCH</span>
+        </button>
+        <button class="mobile-btn pause-btn" id="mobilePause">
+          <span class="btn-icon">||</span>
+        </button>
+      </div>
+    </div>
 
     <script src="game.js"></script>
   </body>

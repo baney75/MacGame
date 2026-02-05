@@ -1,410 +1,485 @@
-@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700&family=Outfit:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap');
 
+/* ============================================
+   CSS Variables
+   ============================================ */
 :root {
-  --bg-1: #0b1320;
-  --bg-2: #11243d;
-  --bg-3: #182f52;
-  --card: #f8f4ef;
-  --ink: #162238;
-  --accent: #ff7a2f;
-  --accent-2: #30d6ff;
-  --accent-3: #ffe15d;
-  --shadow: 0 20px 60px rgba(4, 10, 24, 0.45);
-  --radius: 24px;
+  --bg-dark: #0b1320;
+  --bg-mid: #11243d;
+  --accent-orange: #ff7a2f;
+  --accent-cyan: #30d6ff;
+  --accent-yellow: #ffe15d;
+  --text-light: #ffffff;
+  --text-muted: rgba(255, 255, 255, 0.7);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
 }
 
-* {
+/* ============================================
+   Reset & Base
+   ============================================ */
+*, *::before, *::after {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
-}
-
-html {
-  height: 100%;
-  overflow: hidden;
-  position: fixed;
-  width: 100%;
-}
-
-body {
-  margin: 0;
-  min-height: 100vh;
-  min-height: -webkit-fill-available;
-  font-family: "Outfit", system-ui, sans-serif;
-  color: var(--card);
-  background: radial-gradient(circle at top, #243a61 0%, var(--bg-1) 55%),
-    linear-gradient(140deg, var(--bg-2), var(--bg-1));
-  display: flex;
-  justify-content: center;
-  overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  overflow: hidden;
-  position: fixed;
+}
+
+html, body {
   width: 100%;
   height: 100%;
-  padding-top: var(--safe-top);
-  padding-bottom: var(--safe-bottom);
-  padding-left: var(--safe-left);
-  padding-right: var(--safe-right);
-}
-
-.glow {
+  overflow: hidden;
   position: fixed;
-  inset: -20% -10% auto auto;
-  width: 480px;
-  height: 480px;
-  background: radial-gradient(circle, rgba(255, 122, 47, 0.45), transparent 70%);
-  filter: blur(0px);
-  z-index: 0;
+  top: 0;
+  left: 0;
+  font-family: "Outfit", system-ui, sans-serif;
+  background: var(--bg-dark);
+  color: var(--text-light);
+  touch-action: none;
 }
 
-.app {
-  position: relative;
-  z-index: 1;
-  width: min(1100px, 95vw);
-  padding: 32px 0 48px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.hero {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 24px;
-}
-
-.eyebrow {
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  font-size: 0.7rem;
-  color: var(--accent-2);
-  margin-bottom: 8px;
-}
-
-h1 {
-  font-family: "Baloo 2", sans-serif;
-  font-size: clamp(2.8rem, 6vw, 4rem);
-  margin: 0;
-}
-
-.tagline {
-  max-width: 460px;
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 1.05rem;
-}
-
-.stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 12px;
-  padding: 16px;
-  background: rgba(15, 28, 50, 0.75);
-  border-radius: 18px;
-  box-shadow: var(--shadow);
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-weight: 600;
-  font-size: 1.1rem;
-}
-
-.label {
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.65);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-}
-
-.game-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 240px;
-  gap: 24px;
-}
-
-.canvas-wrap {
-  position: relative;
-  background: radial-gradient(circle at top, #1f3b63 0%, #0c162a 70%);
-  border-radius: var(--radius);
-  padding: 18px;
-  box-shadow: var(--shadow);
+/* ============================================
+   Full-Screen Game Container
+   ============================================ */
+.game-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(180deg, #1a2a4a 0%, var(--bg-dark) 100%);
 }
 
 #game {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: 18px;
-  background: transparent;
+  height: 100%;
   display: block;
   touch-action: none;
 }
 
-.controls {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 18px;
-  padding: 18px;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(6px);
+/* ============================================
+   Floating HUD (Overlay on game)
+   ============================================ */
+.hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: calc(12px + var(--safe-top)) calc(16px + var(--safe-right)) 12px calc(16px + var(--safe-left));
+  pointer-events: none;
+  z-index: 10;
 }
 
-.controls h3 {
-  font-family: "Baloo 2", sans-serif;
-  margin-top: 0;
+.hud-left, .hud-right {
+  display: flex;
+  gap: 16px;
 }
 
-.controls ul {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 12px;
+.hud-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: calc(12px + var(--safe-top));
+}
+
+.hud-item {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.key {
-  display: inline-flex;
+.hud-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text-light);
+}
+
+.hud-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.score-display .hud-value { color: var(--accent-yellow); }
+.combo-display .hud-value { color: var(--accent-orange); }
+.level-display .hud-value { color: var(--accent-cyan); }
+.fun-display .hud-value { color: var(--accent-orange); }
+
+/* ============================================
+   Game Overlay (Start/Pause/GameOver)
+   ============================================ */
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 28px;
-  padding: 2px 8px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.16);
-  font-weight: 600;
-}
-
-.tip {
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.75);
-}
-
-.overlay {
-  position: absolute;
-  inset: 18px;
-  display: grid;
-  place-items: center;
-  background: rgba(10, 16, 30, 0.65);
-  border-radius: 18px;
-  transition: opacity 0.3s ease;
+  background: rgba(11, 19, 32, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 100;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
 .overlay.hidden {
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
 }
 
 .panel {
   text-align: center;
-  background: rgba(15, 24, 40, 0.9);
-  padding: 28px 32px;
-  border-radius: 20px;
-  box-shadow: var(--shadow);
+  padding: 40px 50px;
+  max-width: 90vw;
 }
 
-.panel h2 {
-  font-family: "Baloo 2", sans-serif;
-  margin-top: 0;
+.panel-title {
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  font-weight: 800;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, var(--accent-orange), var(--accent-yellow));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-button {
-  border: none;
-  padding: 12px 18px;
-  border-radius: 999px;
+.panel-text {
+  font-size: clamp(1rem, 3vw, 1.25rem);
+  color: var(--text-muted);
+  margin-bottom: 32px;
+  max-width: 400px;
+}
+
+.btn-primary {
+  display: inline-block;
+  padding: 16px 48px;
+  font-size: 1.25rem;
   font-weight: 700;
-  cursor: pointer;
-  background: linear-gradient(135deg, var(--accent), #ffcf4a);
+  border: none;
+  border-radius: 50px;
+  background: linear-gradient(135deg, var(--accent-orange), var(--accent-yellow));
   color: #1a1a1a;
-  box-shadow: 0 10px 24px rgba(255, 122, 47, 0.35);
-  transition: transform 0.2s ease;
+  cursor: pointer;
+  box-shadow: 0 8px 32px rgba(255, 122, 47, 0.4);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-button:hover {
+.btn-primary:hover {
   transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 12px 40px rgba(255, 122, 47, 0.5);
 }
 
-button.ghost {
-  margin-top: 10px;
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-secondary {
+  display: block;
+  margin: 16px auto 0;
+  padding: 12px 32px;
+  font-size: 1rem;
+  font-weight: 600;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50px;
+  background: transparent;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
   background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  box-shadow: none;
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
-button.hidden {
+.btn-secondary.hidden {
   display: none;
 }
 
+.controls-hint {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 32px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.controls-hint kbd {
+  display: inline-block;
+  padding: 4px 10px;
+  margin-right: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  font-family: inherit;
+  font-weight: 600;
+}
+
+/* ============================================
+   Toast Notifications
+   ============================================ */
 .toast {
-  position: absolute;
-  top: 26px;
-  right: 26px;
-  background: #ff7a2f;
-  color: #1c1205;
-  padding: 10px 16px;
-  border-radius: 16px;
+  position: fixed;
+  top: calc(80px + var(--safe-top));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--accent-orange), var(--accent-yellow));
+  color: #1a1a1a;
   font-weight: 700;
-  box-shadow: var(--shadow);
-  animation: pop 0.4s ease;
+  font-size: 1.1rem;
+  border-radius: 50px;
+  box-shadow: 0 8px 32px rgba(255, 122, 47, 0.5);
+  z-index: 200;
+  animation: toastPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .toast.hidden {
   display: none;
 }
 
+@keyframes toastPop {
+  0% { transform: translateX(-50%) scale(0.5); opacity: 0; }
+  100% { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
+/* ============================================
+   Mobile Controls - Edge Positioned
+   ============================================ */
 .mobile-controls {
-  position: absolute;
-  left: 22px;
-  right: 22px;
-  bottom: calc(20px + var(--safe-bottom));
   display: none;
-  justify-content: space-between;
-  gap: 16px;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: calc(20px + var(--safe-bottom)) var(--safe-left) 20px var(--safe-right);
   pointer-events: none;
+  z-index: 50;
 }
 
-.mobile-controls .control {
+.mobile-btn {
   pointer-events: auto;
-  flex: 1;
-  padding: 18px 20px;
-  min-height: 56px;
-  border-radius: 18px;
-  font-size: 1.1rem;
-  font-weight: 700;
-  background: rgba(15, 24, 40, 0.9);
-  color: #fff;
-  border: 2px solid rgba(255, 255, 255, 0.25);
-  box-shadow: 0 12px 24px rgba(10, 16, 30, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.1s ease;
   -webkit-touch-callout: none;
-  touch-action: manipulation;
 }
 
-.mobile-controls .control:active {
-  transform: scale(0.95);
-  opacity: 0.9;
+.mobile-btn:active {
+  transform: scale(0.9);
+  opacity: 0.8;
 }
 
-.mobile-controls .control.jump {
-  background: linear-gradient(135deg, rgba(255, 122, 47, 0.95), rgba(255, 207, 74, 0.95));
+.btn-icon {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.btn-text {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+}
+
+/* Jump button - LEFT side */
+.jump-btn {
+  position: fixed;
+  left: calc(20px + var(--safe-left));
+  bottom: calc(30px + var(--safe-bottom));
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-orange), var(--accent-yellow));
   color: #1a1a1a;
-  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 6px 24px rgba(255, 122, 47, 0.5);
 }
 
-.mobile-controls .control.punch {
-  background: linear-gradient(135deg, rgba(48, 214, 255, 0.95), rgba(30, 120, 255, 0.95));
+/* Punch button - RIGHT side */
+.punch-btn {
+  position: fixed;
+  right: calc(20px + var(--safe-right));
+  bottom: calc(30px + var(--safe-bottom));
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-cyan), #1e78ff);
   color: #04111f;
-  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 6px 24px rgba(48, 214, 255, 0.5);
 }
 
-.mobile-controls .control.pause {
-  flex: 0 0 auto;
-  width: 56px;
-  padding: 18px 12px;
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.footer {
-  text-align: center;
-  color: rgba(255, 255, 255, 0.6);
+/* Pause button - TOP RIGHT corner */
+.pause-btn {
+  position: fixed;
+  right: calc(16px + var(--safe-right));
+  top: calc(16px + var(--safe-top));
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-light);
   font-size: 0.9rem;
 }
 
-@keyframes pop {
-  0% {
-    transform: scale(0.9);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
+.pause-btn .btn-text {
+  display: none;
 }
 
-@media (max-width: 900px) {
-  .game-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .controls {
-    order: -1;
-  }
-
+/* ============================================
+   Desktop Styles
+   ============================================ */
+@media (min-width: 769px) {
   .mobile-controls {
+    display: none !important;
+  }
+  
+  .desktop-only {
     display: flex;
   }
+  
+  .hud-item {
+    padding: 10px 18px;
+  }
+  
+  .hud-value {
+    font-size: 1.6rem;
+  }
+  
+  .hud-label {
+    font-size: 0.7rem;
+  }
 }
 
-@media (max-width: 600px) {
-  .app {
-    padding: 18px 0 32px;
-    padding-top: calc(18px + var(--safe-top));
-    gap: 18px;
-    overflow-y: auto;
-    height: 100%;
-  }
-
-  .hero {
-    align-items: flex-start;
-    padding: 0 12px;
-  }
-
-  .tagline {
-    font-size: 0.95rem;
-  }
-
-  .stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
-    margin: 0 12px;
-  }
-
-  .stat {
-    font-size: 1rem;
-  }
-
-  .canvas-wrap {
-    padding: 10px;
-    margin: 0 8px;
-    border-radius: 16px;
-  }
-
-  .controls {
-    display: none;
-  }
-
+/* ============================================
+   Mobile/Tablet Styles
+   ============================================ */
+@media (max-width: 768px) {
   .mobile-controls {
-    left: 16px;
-    right: 16px;
-    gap: 12px;
+    display: block;
   }
-
-  .mobile-controls .control {
-    font-size: 1rem;
-    padding: 16px 14px;
-    min-height: 52px;
+  
+  .desktop-only {
+    display: none !important;
   }
-
-  .mobile-controls .control.pause {
-    width: 52px;
-    padding: 16px 10px;
+  
+  .hud {
+    padding: calc(10px + var(--safe-top)) calc(12px + var(--safe-right)) 10px calc(12px + var(--safe-left));
   }
-
-  .footer {
-    padding: 0 12px;
-    padding-bottom: calc(8px + var(--safe-bottom));
+  
+  .hud-item {
+    padding: 6px 10px;
+  }
+  
+  .hud-value {
+    font-size: 1.1rem;
+  }
+  
+  .hud-label {
+    font-size: 0.55rem;
+  }
+  
+  .hud-left, .hud-right {
+    gap: 8px;
+  }
+  
+  .panel {
+    padding: 32px 24px;
+  }
+  
+  .panel-title {
+    font-size: 2.5rem;
+  }
+  
+  .btn-primary {
+    padding: 14px 40px;
+    font-size: 1.1rem;
   }
 }
 
+/* Small phones */
+@media (max-width: 400px) {
+  .jump-btn, .punch-btn {
+    width: 75px;
+    height: 75px;
+  }
+  
+  .btn-icon {
+    font-size: 1.3rem;
+  }
+  
+  .btn-text {
+    font-size: 0.6rem;
+  }
+  
+  .hud-value {
+    font-size: 1rem;
+  }
+  
+  .hud-item {
+    padding: 5px 8px;
+  }
+}
+
+/* Landscape mode on mobile */
+@media (max-height: 500px) and (orientation: landscape) {
+  .jump-btn, .punch-btn {
+    width: 70px;
+    height: 70px;
+    bottom: calc(15px + var(--safe-bottom));
+  }
+  
+  .hud {
+    padding-top: calc(8px + var(--safe-top));
+  }
+  
+  .hud-item {
+    padding: 4px 8px;
+  }
+  
+  .hud-value {
+    font-size: 1rem;
+  }
+  
+  .toast {
+    top: calc(50px + var(--safe-top));
+    font-size: 0.9rem;
+    padding: 8px 16px;
+  }
+}
+
+/* ============================================
+   Reduced Motion
+   ============================================ */
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *, *::before, *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
