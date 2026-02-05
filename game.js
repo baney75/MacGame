@@ -169,43 +169,43 @@ const LEVEL_NAMES = [
 const segmentTemplates = [
   {
     difficulty: 1,
-    length: 360,
-    obstacles: [{ at: 140, type: "ground" }],
-    orbs: [{ at: 200, height: 150 }, { at: 240, height: 150 }],
+    length: 480,
+    obstacles: [{ at: 200, type: "ground" }],
+    orbs: [{ at: 280, height: 150 }, { at: 360, height: 150 }],
   },
   {
     difficulty: 1,
-    length: 420,
-    obstacles: [{ at: 160, type: "ground" }, { at: 300, type: "ground" }],
-    orbs: [{ at: 230, height: 200 }],
+    length: 580,
+    obstacles: [{ at: 200, type: "ground" }, { at: 420, type: "ground" }],
+    orbs: [{ at: 310, height: 200 }],
   },
   {
     difficulty: 2,
-    length: 460,
+    length: 620,
     obstacles: [
-      { at: 150, type: "air", y: groundY - 200 },
-      { at: 320, type: "ground" },
+      { at: 200, type: "air", y: groundY - 200 },
+      { at: 440, type: "ground" },
     ],
-    orbs: [{ at: 230, height: 210 }, { at: 360, height: 180 }],
+    orbs: [{ at: 320, height: 210 }, { at: 520, height: 180 }],
   },
   {
     difficulty: 2,
-    length: 520,
+    length: 700,
     obstacles: [
-      { at: 200, type: "ground", width: 70, height: 90 },
-      { at: 360, type: "air", y: groundY - 220 },
+      { at: 240, type: "ground", width: 70, height: 90 },
+      { at: 500, type: "air", y: groundY - 220 },
     ],
-    orbs: [{ at: 280, height: 200 }],
+    orbs: [{ at: 370, height: 200 }],
   },
   {
     difficulty: 3,
-    length: 560,
+    length: 800,
     obstacles: [
-      { at: 160, type: "ground" },
-      { at: 300, type: "ground" },
-      { at: 440, type: "air", y: groundY - 220 },
+      { at: 200, type: "ground" },
+      { at: 420, type: "ground" },
+      { at: 640, type: "air", y: groundY - 220 },
     ],
-    orbs: [{ at: 230, height: 210 }, { at: 360, height: 210 }],
+    orbs: [{ at: 310, height: 210 }, { at: 530, height: 210 }],
   },
 ];
 
