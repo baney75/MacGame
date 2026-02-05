@@ -213,6 +213,7 @@ const state = {
   running: false,
   paused: false,
   gameOver: false,
+  gameOverTime: 0,
   score: 0,
   best: Number(localStorage.getItem("macgame_best")) || 0,
   bestBefore: 0,
@@ -622,6 +623,7 @@ function collectOrb(orb) {
 
 function endGame() {
   state.gameOver = true;
+  state.gameOverTime = performance.now();
   state.running = false;
   state.paused = false;
   state.awaitingNextLevel = false;
@@ -1044,7 +1046,10 @@ window.addEventListener("keydown", (event) => {
   if (event.code === "Space" || event.code === "ArrowUp") {
     event.preventDefault();
     initAudio();
-    if (!state.running) {
+    // Only allow restart if game is not running AND we're not mid-game
+    // Require 500ms after game over to prevent accidental restarts from held keys
+    if (!state.running && !state.paused) {
+      if (state.gameOver && (performance.now() - state.gameOverTime) < 500) return;
       resetGame();
       return;
     }
