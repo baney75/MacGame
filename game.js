@@ -298,6 +298,17 @@ const spriteSets = {
   attack: ["sprites/mac_attack_1.png", "sprites/mac_attack_2.png"],
   hurt: ["sprites/mac_hurt.png"],
   victory: ["sprites/mac_victory.png"],
+  super: ["sprites/mac_super.png"],
+  defeated: ["sprites/mac_defeated.jpg"],
+  magnus_idle: ["sprites/magnus/magnus_idle.png"],
+  magnus_run: [
+    "sprites/magnus/magnus_run_1.png",
+    "sprites/magnus/magnus_run_2.png",
+    "sprites/magnus/magnus_run_3.png",
+    "sprites/magnus/magnus_run_4.png"
+  ],
+  magnus_jump: ["sprites/magnus/magnus_jump_1.png", "sprites/magnus/magnus_jump_2.png"],
+  magnus_tired: ["sprites/magnus/magnus_tired.png"],
 };
 
 const sprites = {};
@@ -770,6 +781,17 @@ function completeLevel() {
   if (levelTitle) levelTitle.textContent = `LEVEL ${state.level} COMPLETE!`;
   if (levelScore) levelScore.textContent = Math.floor(state.score);
   
+  // Show victory image for high scores or perfect runs
+  const victoryImg = document.getElementById("victoryImage");
+  if (victoryImg) {
+    const isHighScore = state.score > state.best * 0.8;
+    const isPerfect = state.health === 3;
+    victoryImg.style.display = (isHighScore || isPerfect) ? "block" : "none";
+    if (isHighScore || isPerfect) {
+      if (levelTitle) levelTitle.textContent = `LEVEL ${state.level} COMPLETE! 🦸‍♂️`;
+    }
+  }
+  
   // Update next level button text
   const nextLevelBtn = document.getElementById("nextLevelBtn");
   if (nextLevelBtn) {
@@ -999,154 +1021,39 @@ function triggerMagnusChase() {
 function drawMagnus() {
   if (!magnus.visible) return;
   
-  // Draw Magnus as a cute little brown puppy - full body visible
-  ctx.save();
-  ctx.translate(magnus.x, magnus.y);
+  // Use sprite images for Magnus
+  const magnusSprites = sprites.magnus_idle;
+  if (!magnusSprites || !magnusSprites.length) return;
   
-  // Puppy brown colors
-  const bodyColor = '#8B4513'; // Saddle brown
-  const darkColor = '#5D3A1A'; // Darker brown
-  const lightColor = '#D2691E'; // Chocolate
-  
-  // Cute happy bounce when chasing
-  const bounce = magnus.state === 'chasing' ? Math.sin(magnus.frameTimer * 15) * 5 : 0;
-  
-  // Body - cute and fluffy
-  ctx.fillStyle = bodyColor;
-  ctx.beginPath();
-  ctx.ellipse(0, -magnus.height * 0.4 + bounce, magnus.width * 0.45, magnus.height * 0.35, 0, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Fluffy chest
-  ctx.fillStyle = lightColor;
-  ctx.beginPath();
-  ctx.ellipse(magnus.width * 0.1, -magnus.height * 0.35 + bounce, magnus.width * 0.25, magnus.height * 0.2, 0, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Head - round and cute
-  ctx.fillStyle = bodyColor;
-  ctx.beginPath();
-  ctx.arc(magnus.width * 0.2, -magnus.height * 0.65 + bounce, magnus.height * 0.35, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Fluffy ears - floppy and cute
-  ctx.fillStyle = darkColor;
-  // Left ear
-  ctx.beginPath();
-  ctx.ellipse(-magnus.width * 0.05, -magnus.height * 0.75 + bounce, magnus.width * 0.2, magnus.height * 0.25, -0.5, 0, Math.PI * 2);
-  ctx.fill();
-  // Right ear  
-  ctx.beginPath();
-  ctx.ellipse(magnus.width * 0.45, -magnus.height * 0.75 + bounce, magnus.width * 0.2, magnus.height * 0.25, 0.5, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Inner ear (pink)
-  ctx.fillStyle = '#FFB6C1';
-  ctx.beginPath();
-  ctx.ellipse(-magnus.width * 0.05, -magnus.height * 0.75 + bounce, magnus.width * 0.1, magnus.height * 0.12, -0.5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(magnus.width * 0.45, -magnus.height * 0.75 + bounce, magnus.width * 0.1, magnus.height * 0.12, 0.5, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Big cute eyes
-  ctx.fillStyle = '#000';
-  const eyeSize = magnus.state === 'chasing' ? 7 : 6;
-  ctx.beginPath();
-  ctx.arc(-magnus.width * 0.05, -magnus.height * 0.7 + bounce, eyeSize, 0, Math.PI * 2);
-  ctx.arc(magnus.width * 0.45, -magnus.height * 0.7 + bounce, eyeSize, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Eye shine (white dots)
-  ctx.fillStyle = '#FFF';
-  ctx.beginPath();
-  ctx.arc(-magnus.width * 0.02, -magnus.height * 0.72 + bounce, 2.5, 0, Math.PI * 2);
-  ctx.arc(magnus.width * 0.48, -magnus.height * 0.72 + bounce, 2.5, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Cute nose
-  ctx.fillStyle = '#000';
-  ctx.beginPath();
-  ctx.ellipse(magnus.width * 0.2, -magnus.height * 0.55 + bounce, 5, 4, 0, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Nose shine
-  ctx.fillStyle = '#FFF';
-  ctx.beginPath();
-  ctx.arc(magnus.width * 0.22, -magnus.height * 0.57 + bounce, 1.5, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Happy mouth
-  ctx.strokeStyle = '#000';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(magnus.width * 0.2, -magnus.height * 0.52 + bounce, 6, 0.2, Math.PI - 0.2);
-  ctx.stroke();
-  
-  // Cute stubby legs (animated when running)
-  const legAnim = magnus.state === 'chasing' ? Math.sin(magnus.frameTimer * 25) * 8 : 0;
-  ctx.fillStyle = bodyColor;
-  
-  // Front legs
-  ctx.beginPath();
-  ctx.ellipse(magnus.width * 0.15 + legAnim, -magnus.height * 0.15 + bounce, 6, 12, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(magnus.width * 0.35 - legAnim, -magnus.height * 0.15 + bounce, 6, 12, 0, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Back legs
-  ctx.beginPath();
-  ctx.ellipse(-magnus.width * 0.15 + legAnim, -magnus.height * 0.15 + bounce, 6, 12, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(-magnus.width * 0.05 - legAnim, -magnus.height * 0.15 + bounce, 6, 12, 0, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Paws (white tips)
-  ctx.fillStyle = '#FFF';
-  ctx.beginPath();
-  ctx.ellipse(magnus.width * 0.15 + legAnim, -magnus.height * 0.08 + bounce, 5, 4, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(magnus.width * 0.35 - legAnim, -magnus.height * 0.08 + bounce, 5, 4, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(-magnus.width * 0.15 + legAnim, -magnus.height * 0.08 + bounce, 5, 4, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(-magnus.width * 0.05 - legAnim, -magnus.height * 0.08 + bounce, 5, 4, 0, 0, Math.PI * 2);
-  ctx.fill();
-  
-  // Cute fluffy tail
-  ctx.strokeStyle = bodyColor;
-  ctx.lineWidth = 8;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  const tailWag = magnus.state === 'chasing' ? Math.sin(magnus.frameTimer * 20) * 15 : Math.sin(magnus.frameTimer * 5) * 5;
-  ctx.moveTo(-magnus.width * 0.35, -magnus.height * 0.3 + bounce);
-  ctx.quadraticCurveTo(-magnus.width * 0.5, -magnus.height * 0.4 + tailWag + bounce, -magnus.width * 0.45, -magnus.height * 0.25 + bounce);
-  ctx.stroke();
-  
-  // Tongue out when tired (cute panting)
-  if (magnus.state === 'tired') {
-    ctx.fillStyle = '#FF69B4';
-    ctx.beginPath();
-    ctx.ellipse(magnus.width * 0.2, -magnus.height * 0.48 + bounce, 6, 4, 0, 0, Math.PI * 2);
-    ctx.fill();
+  let sprite;
+  switch (magnus.state) {
+    case 'chasing':
+      const runFrames = sprites.magnus_run;
+      if (runFrames && runFrames.length) {
+        const frameIndex = Math.floor(magnus.frameTimer * 10) % runFrames.length;
+        sprite = runFrames[frameIndex];
+      } else {
+        sprite = magnusSprites[0];
+      }
+      break;
+    case 'tired':
+      const tiredFrames = sprites.magnus_tired;
+      sprite = tiredFrames && tiredFrames.length ? tiredFrames[0] : magnusSprites[0];
+      break;
+    default:
+      sprite = magnusSprites[0];
   }
   
-  // Zzz when tired
-  if (magnus.state === 'tired') {
-    ctx.fillStyle = '#87CEEB';
-    ctx.font = 'bold 16px Arial';
-    ctx.fillText('Z', magnus.width * 0.3, -magnus.height * 0.9 + bounce);
-    ctx.fillStyle = '#ADD8E6';
-    ctx.font = 'bold 12px Arial';
-    ctx.fillText('z', magnus.width * 0.45, -magnus.height * 1.0 + bounce);
-  }
+  if (!sprite) return;
   
-  ctx.restore();
+  const meta = sprite.__meta || { width: sprite.width, height: sprite.height, centerX: sprite.width / 2, footY: sprite.height };
+  const scale = magnus.height / meta.height;
+  const drawX = magnus.x - meta.centerX * scale;
+  const drawY = magnus.y - meta.footY * scale;
+  const drawW = meta.width * scale;
+  const drawH = meta.height * scale;
+  
+  ctx.drawImage(sprite, drawX, drawY, drawW, drawH);
 }
 
 function updateConfetti(dt) {
@@ -1328,6 +1235,13 @@ function endGame() {
   if (gameOverTitle) gameOverTitle.textContent = isNewBest ? "NEW BEST!" : "GAME OVER";
   if (finalScore) finalScore.textContent = Math.floor(state.score);
   if (finalBest) finalBest.textContent = state.best;
+  
+  // Show defeated image on game over
+  const defeatedImg = document.getElementById("defeatedImage");
+  if (defeatedImg) {
+    defeatedImg.style.display = isNewBest ? "none" : "block";
+  }
+  
   showMenu(gameOverMenu);
   
   // Check for pending update
