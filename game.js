@@ -446,12 +446,12 @@ const particles = [];
 const floatingTexts = []; // Floating score popups
 const confetti = []; // Celebration confetti
 
-// Magnus the English Mastiff chase mechanic
+// Magnus the cute puppy chase mechanic
 const magnus = {
   x: -200,
-  y: groundY,
-  width: 220,
-  height: 280,
+  y: groundY - 30,
+  width: 80,
+  height: 60,
   active: false,
   state: 'idle', // idle, chasing, tired
   chaseTimer: 0,
@@ -459,10 +459,11 @@ const magnus = {
   frame: 0,
   frameTimer: 0,
   velocity: 0,
-  acceleration: 800,
-  maxSpeed: 400,
+  acceleration: 400,
+  maxSpeed: 250,
   barkTimer: 0,
   visible: false,
+  hasLicked: false,
 };
 
 const magnusSprites = {
@@ -647,10 +648,11 @@ function resetGame() {
   magnus.state = 'idle';
   magnus.visible = false;
   magnus.active = false;
+  magnus.hasLicked = false;
   magnus.chaseTimer = 0;
   magnus.tiredTimer = 0;
   magnus.velocity = 0;
-  magnus.x = -300;
+  magnus.x = -200;
 
   setupLevel(1, true);
   updateLivesDisplay();
@@ -737,10 +739,11 @@ function setupLevel(level, resetScore) {
   // Reset Magnus when changing levels
   magnus.state = 'idle';
   magnus.visible = false;
+  magnus.hasLicked = false;
   magnus.chaseTimer = 0;
   magnus.tiredTimer = 0;
   magnus.velocity = 0;
-  magnus.x = -300;
+  magnus.x = -200;
 
   if (resetScore) {
     state.score = 0;
@@ -920,7 +923,7 @@ function updateMagnus(dt) {
   if (!magnus.active) return;
   
   magnus.frameTimer += dt;
-  magnus.barkTimer -= dt;
+  if (magnus.barkTimer > 0) magnus.barkTimer -= dt;
   
   // Animation frame switching
   if (magnus.frameTimer >= 0.15) {
@@ -930,29 +933,38 @@ function updateMagnus(dt) {
   
   switch (magnus.state) {
     case 'chasing':
-      // Accelerate towards player
-      const targetX = player.x - 180; // Stay slightly behind
+      // Accelerate towards player but stay visible on screen
+      const targetX = player.x - 120; // Target position behind player
       const dx = targetX - magnus.x;
-      magnus.velocity += magnus.acceleration * dt;
-      magnus.velocity = Math.min(magnus.velocity, magnus.maxSpeed);
+      
+      if (dx > 0) {
+        magnus.velocity += magnus.acceleration * dt;
+        magnus.velocity = Math.min(magnus.velocity, magnus.maxSpeed);
+      } else {
+        magnus.velocity *= 0.9; // Slow down if too close
+      }
       
       magnus.x += magnus.velocity * dt;
+      
+      // Keep Magnus on screen - clamp to visible area
+      magnus.x = Math.max(20, Math.min(magnus.x, player.x - 80));
       
       // Chase timer
       magnus.chaseTimer -= dt;
       
-      // Random barks during chase
-      if (magnus.barkTimer <= 0 && Math.random() < 0.02) {
-        showToast("WOOF!");
-        magnus.barkTimer = 2.0;
+      // Random barks during chase (cute puppy barks)
+      if (magnus.barkTimer <= 0 && Math.random() < 0.03) {
+        const barks = ["Yip!", "Arf!", "Bark!", "Woof!"];
+        showToast(barks[Math.floor(Math.random() * barks.length)]);
+        magnus.barkTimer = 2.5;
       }
       
-      // End chase after timer
-      if (magnus.chaseTimer <= 0) {
+      // End chase after timer or if he licked you
+      if (magnus.chaseTimer <= 0 || magnus.hasLicked) {
         magnus.state = 'tired';
         magnus.tiredTimer = 3.0;
         magnus.velocity = 0;
-        showToast("Magnus is tired...");
+        if (!magnus.hasLicked) showToast("Magnus is tired...");
       }
       break;
       
@@ -961,19 +973,14 @@ function updateMagnus(dt) {
       if (magnus.tiredTimer <= 0) {
         magnus.state = 'idle';
         magnus.visible = false;
-        showToast("Magnus is resting");
+        magnus.hasLicked = false;
       }
       break;
       
     case 'idle':
       // Hidden off-screen
-      magnus.x = player.x - 400;
+      magnus.x = -200;
       break;
-  }
-  
-  // Ensure Magnus doesn't go past player
-  if (magnus.x > player.x - 100) {
-    magnus.x = player.x - 100;
   }
 }
 
@@ -983,98 +990,160 @@ function triggerMagnusChase() {
   magnus.state = 'chasing';
   magnus.chaseTimer = 8.0 + Math.random() * 4.0; // Chase for 8-12 seconds
   magnus.visible = true;
-  magnus.x = -300; // Start off-screen
-  magnus.velocity = state.speed;
+  magnus.hasLicked = false;
+  magnus.x = 50; // Start visible on left side of screen
+  magnus.velocity = 0;
   showToast("MAGNUS IS COMING!");
 }
 
 function drawMagnus() {
-  if (!magnus.visible || magnus.state === 'idle') return;
+  if (!magnus.visible) return;
   
-  // Draw Magnus as a large dog silhouette
+  // Draw Magnus as a cute little brown puppy - full body visible
   ctx.save();
   ctx.translate(magnus.x, magnus.y);
   
-  // Dog body (English Mastiff - large and muscular)
-  ctx.fillStyle = '#3d2817'; // Dark brown
+  // Puppy brown colors
+  const bodyColor = '#8B4513'; // Saddle brown
+  const darkColor = '#5D3A1A'; // Darker brown
+  const lightColor = '#D2691E'; // Chocolate
   
-  // Body
+  // Cute happy bounce when chasing
+  const bounce = magnus.state === 'chasing' ? Math.sin(magnus.frameTimer * 15) * 5 : 0;
+  
+  // Body - cute and fluffy
+  ctx.fillStyle = bodyColor;
   ctx.beginPath();
-  ctx.ellipse(0, -magnus.height * 0.5, magnus.width * 0.5, magnus.height * 0.4, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, -magnus.height * 0.4 + bounce, magnus.width * 0.45, magnus.height * 0.35, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Head (large and blocky)
+  // Fluffy chest
+  ctx.fillStyle = lightColor;
   ctx.beginPath();
-  ctx.ellipse(magnus.width * 0.25, -magnus.height * 0.75, magnus.width * 0.35, magnus.height * 0.3, 0, 0, Math.PI * 2);
+  ctx.ellipse(magnus.width * 0.1, -magnus.height * 0.35 + bounce, magnus.width * 0.25, magnus.height * 0.2, 0, 0, Math.PI * 2);
   ctx.fill();
   
-  // Ears
+  // Head - round and cute
+  ctx.fillStyle = bodyColor;
   ctx.beginPath();
-  ctx.ellipse(magnus.width * 0.15, -magnus.height * 0.9, magnus.width * 0.15, magnus.height * 0.15, -0.3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(magnus.width * 0.35, -magnus.height * 0.9, magnus.width * 0.15, magnus.height * 0.15, 0.3, 0, Math.PI * 2);
+  ctx.arc(magnus.width * 0.2, -magnus.height * 0.65 + bounce, magnus.height * 0.35, 0, Math.PI * 2);
   ctx.fill();
   
-  // Eyes (glowing when chasing)
-  if (magnus.state === 'chasing') {
-    ctx.fillStyle = '#ff3333';
-    ctx.beginPath();
-    ctx.arc(magnus.width * 0.3, -magnus.height * 0.78, 8, 0, Math.PI * 2);
-    ctx.arc(magnus.width * 0.4, -magnus.height * 0.78, 8, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Red glow effect
-    ctx.shadowBlur = 20;
-    ctx.shadowColor = '#ff0000';
-    ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
-    ctx.beginPath();
-    ctx.arc(magnus.width * 0.35, -magnus.height * 0.78, 25, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-  } else {
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(magnus.width * 0.3, -magnus.height * 0.78, 6, 0, Math.PI * 2);
-    ctx.arc(magnus.width * 0.4, -magnus.height * 0.78, 6, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  
-  // Legs (animated when running)
-  if (magnus.state === 'chasing') {
-    const legOffset = Math.sin(magnus.frameTimer * 20) * 10;
-    ctx.fillStyle = '#2d1f12';
-    // Front legs
-    ctx.fillRect(magnus.width * 0.1 + legOffset, -magnus.height * 0.3, 25, 80);
-    ctx.fillRect(magnus.width * 0.3 - legOffset, -magnus.height * 0.3, 25, 80);
-    // Back legs
-    ctx.fillRect(-magnus.width * 0.2 + legOffset, -magnus.height * 0.3, 25, 80);
-    ctx.fillRect(-magnus.width * 0.05 - legOffset, -magnus.height * 0.3, 25, 80);
-  } else {
-    // Static legs when tired
-    ctx.fillStyle = '#2d1f12';
-    ctx.fillRect(magnus.width * 0.1, -magnus.height * 0.3, 25, 70);
-    ctx.fillRect(magnus.width * 0.3, -magnus.height * 0.3, 25, 70);
-    ctx.fillRect(-magnus.width * 0.2, -magnus.height * 0.3, 25, 70);
-    ctx.fillRect(-magnus.width * 0.05, -magnus.height * 0.3, 25, 70);
-  }
-  
-  // Tail
-  ctx.strokeStyle = '#3d2817';
-  ctx.lineWidth = 15;
-  ctx.lineCap = 'round';
+  // Fluffy ears - floppy and cute
+  ctx.fillStyle = darkColor;
+  // Left ear
   ctx.beginPath();
-  const tailWag = magnus.state === 'chasing' ? Math.sin(magnus.frameTimer * 15) * 15 : 0;
-  ctx.moveTo(-magnus.width * 0.4, -magnus.height * 0.4);
-  ctx.quadraticCurveTo(-magnus.width * 0.6, -magnus.height * 0.5 + tailWag, -magnus.width * 0.55, -magnus.height * 0.3);
+  ctx.ellipse(-magnus.width * 0.05, -magnus.height * 0.75 + bounce, magnus.width * 0.2, magnus.height * 0.25, -0.5, 0, Math.PI * 2);
+  ctx.fill();
+  // Right ear  
+  ctx.beginPath();
+  ctx.ellipse(magnus.width * 0.45, -magnus.height * 0.75 + bounce, magnus.width * 0.2, magnus.height * 0.25, 0.5, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Inner ear (pink)
+  ctx.fillStyle = '#FFB6C1';
+  ctx.beginPath();
+  ctx.ellipse(-magnus.width * 0.05, -magnus.height * 0.75 + bounce, magnus.width * 0.1, magnus.height * 0.12, -0.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(magnus.width * 0.45, -magnus.height * 0.75 + bounce, magnus.width * 0.1, magnus.height * 0.12, 0.5, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Big cute eyes
+  ctx.fillStyle = '#000';
+  const eyeSize = magnus.state === 'chasing' ? 7 : 6;
+  ctx.beginPath();
+  ctx.arc(-magnus.width * 0.05, -magnus.height * 0.7 + bounce, eyeSize, 0, Math.PI * 2);
+  ctx.arc(magnus.width * 0.45, -magnus.height * 0.7 + bounce, eyeSize, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Eye shine (white dots)
+  ctx.fillStyle = '#FFF';
+  ctx.beginPath();
+  ctx.arc(-magnus.width * 0.02, -magnus.height * 0.72 + bounce, 2.5, 0, Math.PI * 2);
+  ctx.arc(magnus.width * 0.48, -magnus.height * 0.72 + bounce, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Cute nose
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.ellipse(magnus.width * 0.2, -magnus.height * 0.55 + bounce, 5, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Nose shine
+  ctx.fillStyle = '#FFF';
+  ctx.beginPath();
+  ctx.arc(magnus.width * 0.22, -magnus.height * 0.57 + bounce, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Happy mouth
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(magnus.width * 0.2, -magnus.height * 0.52 + bounce, 6, 0.2, Math.PI - 0.2);
   ctx.stroke();
   
-  // Tongue out when tired
+  // Cute stubby legs (animated when running)
+  const legAnim = magnus.state === 'chasing' ? Math.sin(magnus.frameTimer * 25) * 8 : 0;
+  ctx.fillStyle = bodyColor;
+  
+  // Front legs
+  ctx.beginPath();
+  ctx.ellipse(magnus.width * 0.15 + legAnim, -magnus.height * 0.15 + bounce, 6, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(magnus.width * 0.35 - legAnim, -magnus.height * 0.15 + bounce, 6, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Back legs
+  ctx.beginPath();
+  ctx.ellipse(-magnus.width * 0.15 + legAnim, -magnus.height * 0.15 + bounce, 6, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(-magnus.width * 0.05 - legAnim, -magnus.height * 0.15 + bounce, 6, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Paws (white tips)
+  ctx.fillStyle = '#FFF';
+  ctx.beginPath();
+  ctx.ellipse(magnus.width * 0.15 + legAnim, -magnus.height * 0.08 + bounce, 5, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(magnus.width * 0.35 - legAnim, -magnus.height * 0.08 + bounce, 5, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(-magnus.width * 0.15 + legAnim, -magnus.height * 0.08 + bounce, 5, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(-magnus.width * 0.05 - legAnim, -magnus.height * 0.08 + bounce, 5, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Cute fluffy tail
+  ctx.strokeStyle = bodyColor;
+  ctx.lineWidth = 8;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  const tailWag = magnus.state === 'chasing' ? Math.sin(magnus.frameTimer * 20) * 15 : Math.sin(magnus.frameTimer * 5) * 5;
+  ctx.moveTo(-magnus.width * 0.35, -magnus.height * 0.3 + bounce);
+  ctx.quadraticCurveTo(-magnus.width * 0.5, -magnus.height * 0.4 + tailWag + bounce, -magnus.width * 0.45, -magnus.height * 0.25 + bounce);
+  ctx.stroke();
+  
+  // Tongue out when tired (cute panting)
   if (magnus.state === 'tired') {
-    ctx.fillStyle = '#ff6b6b';
+    ctx.fillStyle = '#FF69B4';
     ctx.beginPath();
-    ctx.ellipse(magnus.width * 0.45, -magnus.height * 0.65, 15, 8, 0.3, 0, Math.PI * 2);
+    ctx.ellipse(magnus.width * 0.2, -magnus.height * 0.48 + bounce, 6, 4, 0, 0, Math.PI * 2);
     ctx.fill();
+  }
+  
+  // Zzz when tired
+  if (magnus.state === 'tired') {
+    ctx.fillStyle = '#87CEEB';
+    ctx.font = 'bold 16px Arial';
+    ctx.fillText('Z', magnus.width * 0.3, -magnus.height * 0.9 + bounce);
+    ctx.fillStyle = '#ADD8E6';
+    ctx.font = 'bold 12px Arial';
+    ctx.fillText('z', magnus.width * 0.45, -magnus.height * 1.0 + bounce);
   }
   
   ctx.restore();
@@ -1420,38 +1489,30 @@ function updateGame(dt) {
     }
   });
   
-  // Check collision with Magnus
-  if (magnus.visible && magnus.state === 'chasing') {
+  // Check collision with Magnus (friendly puppy!)
+  if (magnus.visible && magnus.state === 'chasing' && !magnus.hasLicked) {
     const magnusBox = {
-      x: magnus.x + 20,
-      y: magnus.y - magnus.height + 20,
-      width: magnus.width - 40,
-      height: magnus.height - 40
+      x: magnus.x + 10,
+      y: magnus.y - magnus.height + 10,
+      width: magnus.width - 20,
+      height: magnus.height - 20
     };
     
     if (rectsOverlap(playerBox, magnusBox)) {
-      // Magnus catches you! Take damage
-      if (player.invincible <= 0) {
-        state.health -= 2; // Magnus hits hard!
-        state.combo = 1;
-        state.comboTimer = 0;
-        player.hurtTimer = 0.6;
-        player.invincible = 2.0;
-        state.shake = 0.8;
-        state.hitFlash = 0.5;
-        showToast("MAGNUS GOT YOU!");
-        playHurtSound();
-        updateLivesDisplay();
-        
-        // Magnus gets tired after catching you
-        magnus.state = 'tired';
-        magnus.tiredTimer = 4.0;
-        magnus.velocity = 0;
-        
-        if (state.health <= 0) {
-          endGame();
-        }
-      }
+      // Magnus gives you puppy kisses! No damage, just love
+      magnus.hasLicked = true;
+      const bonus = 500;
+      state.score += bonus;
+      state.fun = Math.min(100, state.fun + 25);
+      addFloatingText(player.x, player.y - player.height - 30, "PUPPY KISSES! +" + bonus, "#FF69B4");
+      showToast("Magnus loves you!");
+      playOrbSound(); // Happy sound
+      addConfetti(player.x, player.y - player.height, 15);
+      
+      // Magnus gets tired after giving kisses
+      magnus.state = 'tired';
+      magnus.tiredTimer = 3.0;
+      magnus.velocity = 0;
     }
   }
 
