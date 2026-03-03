@@ -47,14 +47,37 @@
     <div class="menu-content">
       <h1 class="game-title">MacGame</h1>
       <p class="game-subtitle">The Most Fun Ever</p>
+      
+      <!-- Mode Selector -->
+      <div id="modeSelector" class="mode-selector">
+        <p class="mode-label">Select Your Device:</p>
+        <div class="mode-buttons">
+          <button id="pcModeBtn" class="mode-btn active" data-mode="pc">
+            <span class="mode-icon">⌨️</span>
+            <span class="mode-text">PC / Laptop</span>
+            <span class="mode-desc">Keyboard Controls</span>
+          </button>
+          <button id="mobileModeBtn" class="mode-btn" data-mode="mobile">
+            <span class="mode-icon">📱</span>
+            <span class="mode-text">Mobile / Tablet</span>
+            <span class="mode-desc">Touch Controls</span>
+          </button>
+        </div>
+      </div>
+      
       <button id="playBtn" class="play-btn">PLAY</button>
       <div class="high-score">
         BEST: <span id="menuBest">0</span>
       </div>
-      <div id="tutorialHints" class="tutorial-hints">
+      <div id="pcTutorialHints" class="tutorial-hints pc-only">
         <div class="hint"><span class="key">SPACE</span> Jump</div>
         <div class="hint"><span class="key">X</span> Punch</div>
         <div class="hint"><span class="key">P</span> Pause</div>
+      </div>
+      <div id="mobileTutorialHints" class="tutorial-hints mobile-only hidden">
+        <div class="hint"><span class="key">👆 TAP</span> Jump</div>
+        <div class="hint"><span class="key">👊 PUNCH</span> Attack</div>
+        <div class="hint"><span class="key">⏸️ PAUSE</span> Pause</div>
       </div>
     </div>
   </div>

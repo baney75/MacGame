@@ -256,6 +256,15 @@ const hud = document.getElementById("hud");
 const mobileControls = document.getElementById("mobileControls");
 const pcControls = document.getElementById("pcControls");
 
+// Mode selection elements
+const pcModeBtn = document.getElementById("pcModeBtn");
+const mobileModeBtn = document.getElementById("mobileModeBtn");
+const pcTutorialHints = document.getElementById("pcTutorialHints");
+const mobileTutorialHints = document.getElementById("mobileTutorialHints");
+
+// Game mode state
+let gameMode = 'pc'; // 'pc' or 'mobile'
+
 const playBtn = document.getElementById("playBtn");
 const resumeBtn = document.getElementById("resumeBtn");
 const quitBtn = document.getElementById("quitBtn");
@@ -457,12 +466,12 @@ const particles = [];
 const floatingTexts = []; // Floating score popups
 const confetti = []; // Celebration confetti
 
-// Magnus the cute puppy chase mechanic
+// Magnus the cute puppy chase mechanic - BIGGER and better positioned
 const magnus = {
   x: -200,
-  y: groundY - 30,
-  width: 80,
-  height: 60,
+  y: groundY - 40,
+  width: 140,
+  height: 105,
   active: false,
   state: 'idle', // idle, chasing, tired
   chaseTimer: 0,
@@ -613,8 +622,16 @@ function hideAllMenus() {
 
 function showHUD() {
   if (hud) hud.classList.remove("hidden");
-  if (mobileControls) mobileControls.classList.remove("hidden");
-  if (pcControls) pcControls.classList.remove("hidden");
+  
+  // Show controls based on selected mode
+  if (gameMode === 'mobile') {
+    if (mobileControls) mobileControls.classList.remove("hidden");
+    if (pcControls) pcControls.classList.add("hidden");
+  } else {
+    // PC mode - show keyboard hints
+    if (mobileControls) mobileControls.classList.add("hidden");
+    if (pcControls) pcControls.classList.remove("hidden");
+  }
 }
 
 function hideHUD() {
@@ -1013,9 +1030,9 @@ function triggerMagnusChase() {
   magnus.chaseTimer = 8.0 + Math.random() * 4.0; // Chase for 8-12 seconds
   magnus.visible = true;
   magnus.hasLicked = false;
-  magnus.x = 50; // Start visible on left side of screen
-  magnus.velocity = 0;
-  showToast("MAGNUS IS COMING!");
+  magnus.x = -50; // Start just off-screen left for natural entry
+  magnus.velocity = state.speed * 0.7; // Start with some momentum
+  showToast("🐕 MAGNUS IS COMING!");
 }
 
 function drawMagnus() {
@@ -1406,10 +1423,10 @@ function updateGame(dt) {
   // Check collision with Magnus (friendly puppy!)
   if (magnus.visible && magnus.state === 'chasing' && !magnus.hasLicked) {
     const magnusBox = {
-      x: magnus.x + 10,
-      y: magnus.y - magnus.height + 10,
-      width: magnus.width - 20,
-      height: magnus.height - 20
+      x: magnus.x + 20,
+      y: magnus.y - magnus.height + 25,
+      width: magnus.width - 40,
+      height: magnus.height - 40
     };
     
     if (rectsOverlap(playerBox, magnusBox)) {
@@ -1728,6 +1745,44 @@ function startIfNeeded() {
     return true;
   }
   return false;
+}
+
+// Mode selection
+function setGameMode(mode) {
+  gameMode = mode;
+  
+  // Update button styles
+  if (pcModeBtn && mobileModeBtn) {
+    pcModeBtn.classList.toggle('active', mode === 'pc');
+    mobileModeBtn.classList.toggle('active', mode === 'mobile');
+  }
+  
+  // Show/hide tutorial hints
+  if (pcTutorialHints && mobileTutorialHints) {
+    pcTutorialHints.classList.toggle('hidden', mode !== 'pc');
+    mobileTutorialHints.classList.toggle('hidden', mode !== 'mobile');
+  }
+  
+  // Set body data attribute for CSS
+  document.body.setAttribute('data-mode', mode);
+  
+  // Save preference
+  localStorage.setItem('macgame_mode', mode);
+}
+
+// Load saved mode preference
+const savedMode = localStorage.getItem('macgame_mode');
+if (savedMode) {
+  setGameMode(savedMode);
+}
+
+// Mode button event listeners
+if (pcModeBtn) {
+  pcModeBtn.addEventListener("click", () => setGameMode('pc'));
+}
+
+if (mobileModeBtn) {
+  mobileModeBtn.addEventListener("click", () => setGameMode('mobile'));
 }
 
 // Play button (start menu)

@@ -316,6 +316,73 @@ html, body {
   letter-spacing: 0.1em;
 }
 
+/* Mode Selector */
+.mode-selector {
+  margin: 30px 0;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mode-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 15px;
+}
+
+.mode-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.mode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 30px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 140px;
+}
+
+.mode-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.mode-btn.active {
+  background: rgba(48, 214, 255, 0.15);
+  border-color: var(--cyan);
+  box-shadow: 0 0 20px rgba(48, 214, 255, 0.2);
+}
+
+.mode-icon {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.mode-text {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.mode-desc {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 /* Tutorial hints on start menu */
 .tutorial-hints {
   display: flex;
@@ -323,6 +390,10 @@ html, body {
   gap: 24px;
   margin-top: 40px;
   flex-wrap: wrap;
+}
+
+.tutorial-hints.hidden {
+  display: none;
 }
 
 .hint {
@@ -585,17 +656,9 @@ html, body {
 }
 
 /* ============================================
-   DESKTOP - Hide touch controls, show PC controls
+   DESKTOP - Hide touch controls, show PC controls by default
    ============================================ */
 @media (hover: hover) and (pointer: fine) {
-  .touch-controls {
-    display: none !important;
-  }
-  
-  .pc-controls {
-    display: flex;
-  }
-  
   .play-btn:hover {
     transform: scale(1.05);
     box-shadow: 0 12px 40px rgba(255, 122, 47, 0.5);
@@ -605,6 +668,27 @@ html, body {
     background: rgba(255,255,255,0.15);
     border-color: rgba(255,255,255,0.4);
   }
+}
+
+/* ============================================
+   MODE-SPECIFIC CONTROLS
+   ============================================ */
+/* PC Mode - show PC controls, hide mobile */
+body[data-mode="pc"] .pc-controls {
+  display: flex !important;
+}
+
+body[data-mode="pc"] .touch-controls {
+  display: none !important;
+}
+
+/* Mobile Mode - show mobile controls, hide PC */
+body[data-mode="mobile"] .pc-controls {
+  display: none !important;
+}
+
+body[data-mode="mobile"] .touch-controls {
+  display: flex !important;
 }
 
 /* ============================================
