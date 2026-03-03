@@ -254,6 +254,7 @@ const gameOverMenu = document.getElementById("gameOverMenu");
 const levelComplete = document.getElementById("levelComplete");
 const hud = document.getElementById("hud");
 const mobileControls = document.getElementById("mobileControls");
+const pcControls = document.getElementById("pcControls");
 
 const playBtn = document.getElementById("playBtn");
 const resumeBtn = document.getElementById("resumeBtn");
@@ -277,6 +278,9 @@ const finalBest = document.getElementById("finalBest");
 const gameOverTitle = document.getElementById("gameOverTitle");
 const levelTitle = document.getElementById("levelTitle");
 const levelScore = document.getElementById("levelScore");
+const levelProgressBar = document.getElementById("levelProgressBar");
+const levelProgressText = document.getElementById("levelProgressText");
+const levelNameEl = document.getElementById("levelName");
 
 const BASE_WIDTH = 960;
 const BASE_HEIGHT = 540;
@@ -572,11 +576,13 @@ function hideAllMenus() {
 function showHUD() {
   if (hud) hud.classList.remove("hidden");
   if (mobileControls) mobileControls.classList.remove("hidden");
+  if (pcControls) pcControls.classList.remove("hidden");
 }
 
 function hideHUD() {
   if (hud) hud.classList.add("hidden");
   if (mobileControls) mobileControls.classList.add("hidden");
+  if (pcControls) pcControls.classList.add("hidden");
 }
 
 function updateLivesDisplay() {
@@ -616,6 +622,10 @@ function resetGame() {
 
   hideAllMenus();
   showHUD();
+  
+  // Show level start notification
+  const levelIndex = Math.min(0, LEVEL_NAMES.length - 1);
+  showToast(`${LEVEL_NAMES[levelIndex]}!`);
   
   // Start background music
   if (musicEnabled) startMusic();
@@ -666,18 +676,28 @@ function buildLevelPlan(level) {
 }
 
 function setupLevel(level, resetScore) {
+  // Validate level number
+  level = Math.max(1, Math.floor(level));
+  
   state.level = level;
   state.distance = 0;
   state.spawnIndex = 0;
   state.awaitingNextLevel = false;
+  
+  // Build level plan with proper target distance
   const plan = buildLevelPlan(level);
   state.spawnPlan = plan.spawns;
   state.levelTarget = plan.target;
+  
+  // Scale speed with level (starts at 260, increases by 14 per level)
   state.speed = 260 + (level - 1) * 14;
 
+  // Clear all game entities
   obstacles.length = 0;
   orbs.length = 0;
   particles.length = 0;
+  floatingTexts.length = 0;
+  confetti.length = 0;
 
   if (resetScore) {
     state.score = 0;
@@ -685,18 +705,32 @@ function setupLevel(level, resetScore) {
     state.fun = 0;
     state.health = 3;
   }
+  
+  console.log(`Level ${level} started: ${LEVEL_NAMES[Math.min(level - 1, LEVEL_NAMES.length - 1)] || 'Unknown'} - Target: ${state.levelTarget}m`);
 }
 
 function completeLevel() {
   state.running = false;
   state.paused = false;
   state.awaitingNextLevel = true;
+  state.gameOver = false;
   playLevelCompleteSound();
   stopMusic();
+  
+  // Add celebration confetti
+  addConfetti(BASE_WIDTH / 2, BASE_HEIGHT / 3, 40);
   
   hideHUD();
   if (levelTitle) levelTitle.textContent = `LEVEL ${state.level} COMPLETE!`;
   if (levelScore) levelScore.textContent = Math.floor(state.score);
+  
+  // Update next level button text
+  const nextLevelBtn = document.getElementById("nextLevelBtn");
+  if (nextLevelBtn) {
+    const nextLevelName = LEVEL_NAMES[Math.min(state.level, LEVEL_NAMES.length - 1)] || `Level ${state.level + 1}`;
+    nextLevelBtn.textContent = `NEXT: ${nextLevelName}`;
+  }
+  
   showMenu(levelComplete);
 }
 
@@ -1377,6 +1411,19 @@ function updateHUD() {
     const percent = Math.max(0, (state.comboTimer / 2.0) * 100);
     comboBar.style.width = percent + "%";
   }
+  
+  // Update level progress bar
+  if (levelProgressBar && state.running) {
+    const progress = Math.min(100, (state.distance / state.levelTarget) * 100);
+    levelProgressBar.style.width = progress + "%";
+    if (levelProgressText) {
+      levelProgressText.textContent = Math.floor(progress) + "%";
+    }
+    if (levelNameEl) {
+      const levelIndex = Math.min(state.level - 1, LEVEL_NAMES.length - 1);
+      levelNameEl.textContent = LEVEL_NAMES[levelIndex] || `Level ${state.level}`;
+    }
+  }
 }
 
 let lastTime = 0;
@@ -1487,8 +1534,12 @@ if (nextLevelBtn) {
   nextLevelBtn.addEventListener("click", () => {
     initAudio();
     state.awaitingNextLevel = false;
-    setupLevel(state.level + 1, false);
+    const nextLevel = state.level + 1;
+    setupLevel(nextLevel, false);
     state.running = true;
+    state.paused = false;
+    state.gameOver = false;
+    state.awaitingNextLevel = false;
     updateLivesDisplay();
     hideAllMenus();
     showHUD();

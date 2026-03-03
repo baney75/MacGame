@@ -32,6 +32,14 @@
       </div>
     </div>
     <div class="hud-lives" id="livesDisplay"></div>
+    <!-- Level Progress Bar -->
+    <div class="level-progress-container">
+      <div class="level-progress-bar" id="levelProgressBar"></div>
+      <div class="level-progress-text">
+        <span id="levelName">Sunrise Sprint</span>
+        <span id="levelProgressText">0%</span>
+      </div>
+    </div>
   </div>
 
   <!-- START MENU - Game title screen -->
@@ -94,6 +102,22 @@
     <button id="mobileJump" class="touch-btn jump-btn"></button>
     <button id="mobilePunch" class="touch-btn punch-btn"></button>
     <button id="mobilePause" class="touch-btn pause-btn"></button>
+  </div>
+
+  <!-- PC CONTROLS - Visible on desktop -->
+  <div id="pcControls" class="pc-controls hidden">
+    <div class="pc-control-hint">
+      <span class="pc-key">SPACE</span>
+      <span class="pc-action">Jump</span>
+    </div>
+    <div class="pc-control-hint">
+      <span class="pc-key">X</span>
+      <span class="pc-action">Punch</span>
+    </div>
+    <div class="pc-control-hint">
+      <span class="pc-key">P</span>
+      <span class="pc-action">Pause</span>
+    </div>
   </div>
 
   <script src="game.js"></script>

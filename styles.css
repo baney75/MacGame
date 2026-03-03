@@ -127,6 +127,43 @@ html, body {
   font-size: 1.2rem;
 }
 
+/* Level Progress Bar */
+.level-progress-container {
+  position: fixed;
+  top: calc(50px + var(--safe-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(300px, 50vw);
+  height: 24px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.level-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--cyan), var(--orange));
+  border-radius: 10px;
+  transition: width 0.3s ease-out;
+}
+
+.level-progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  justify-content: space-between;
+  width: 90%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+
 .hud-right {
   display: flex;
   align-items: center;
@@ -485,11 +522,67 @@ html, body {
 }
 
 /* ============================================
-   DESKTOP - Hide touch controls
+   PC CONTROLS - Visible on desktop
+   ============================================ */
+.pc-controls {
+  position: fixed;
+  bottom: calc(20px + var(--safe-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 30px;
+  z-index: 50;
+  padding: 15px 25px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pc-controls.hidden {
+  display: none;
+}
+
+.pc-control-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.pc-key {
+  display: inline-block;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #2a2a3a, #1a1a2a);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  border-bottom: 4px solid rgba(255, 255, 255, 0.1);
+  font-family: 'Outfit', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--cyan);
+  text-shadow: 0 0 10px rgba(48, 214, 255, 0.3);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.pc-action {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================
+   DESKTOP - Hide touch controls, show PC controls
    ============================================ */
 @media (hover: hover) and (pointer: fine) {
   .touch-controls {
     display: none !important;
+  }
+  
+  .pc-controls {
+    display: flex;
   }
   
   .play-btn:hover {
