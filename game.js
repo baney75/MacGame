@@ -469,9 +469,9 @@ const confetti = []; // Celebration confetti
 // Magnus the cute puppy chase mechanic - BIGGER and better positioned
 const magnus = {
   x: -200,
-  y: groundY - 40,
-  width: 140,
-  height: 105,
+  y: groundY - 45,
+  width: 160,
+  height: 120,
   active: false,
   state: 'idle', // idle, chasing, tired
   chaseTimer: 0,
@@ -961,14 +961,9 @@ function addConfetti(x, y, count = 30) {
 function updateMagnus(dt) {
   if (!magnus.active) return;
   
+  // Update frame timer for smooth animation
   magnus.frameTimer += dt;
   if (magnus.barkTimer > 0) magnus.barkTimer -= dt;
-  
-  // Animation frame switching
-  if (magnus.frameTimer >= 0.15) {
-    magnus.frame = (magnus.frame + 1) % 4;
-    magnus.frameTimer = 0;
-  }
   
   switch (magnus.state) {
     case 'chasing':
@@ -1038,39 +1033,86 @@ function triggerMagnusChase() {
 function drawMagnus() {
   if (!magnus.visible) return;
   
-  // Use sprite images for Magnus
-  const magnusSprites = sprites.magnus_idle;
-  if (!magnusSprites || !magnusSprites.length) return;
-  
   let sprite;
+  let animationSpeed = 8; // frames per second
+  
   switch (magnus.state) {
     case 'chasing':
+      // Use running animation with all 4 frames
       const runFrames = sprites.magnus_run;
       if (runFrames && runFrames.length) {
-        const frameIndex = Math.floor(magnus.frameTimer * 10) % runFrames.length;
+        // Animate based on velocity - faster when running fast
+        const speedFactor = Math.max(0.5, magnus.velocity / 200);
+        const frameIndex = Math.floor(magnus.frameTimer * animationSpeed * speedFactor) % runFrames.length;
         sprite = runFrames[frameIndex];
-      } else {
-        sprite = magnusSprites[0];
       }
       break;
+      
     case 'tired':
+      // Use tired sprite
       const tiredFrames = sprites.magnus_tired;
-      sprite = tiredFrames && tiredFrames.length ? tiredFrames[0] : magnusSprites[0];
+      if (tiredFrames && tiredFrames.length) {
+        sprite = tiredFrames[0];
+      }
       break;
+      
+    case 'idle':
     default:
-      sprite = magnusSprites[0];
+      // Use idle animation (single sprite for now, or could animate if more frames added)
+      const idleFrames = sprites.magnus_idle;
+      if (idleFrames && idleFrames.length) {
+        sprite = idleFrames[0];
+      }
+      break;
   }
   
-  if (!sprite) return;
+  if (!sprite) {
+    // Fallback: try to find any Magnus sprite
+    if (sprites.magnus_idle && sprites.magnus_idle.length) {
+      sprite = sprites.magnus_idle[0];
+    } else {
+      return; // No sprite available
+    }
+  }
   
-  const meta = sprite.__meta || { width: sprite.width, height: sprite.height, centerX: sprite.width / 2, footY: sprite.height };
+  const meta = sprite.__meta || { 
+    width: sprite.width, 
+    height: sprite.height, 
+    centerX: sprite.width / 2, 
+    footY: sprite.height 
+  };
+  
   const scale = magnus.height / meta.height;
   const drawX = magnus.x - meta.centerX * scale;
   const drawY = magnus.y - meta.footY * scale;
   const drawW = meta.width * scale;
   const drawH = meta.height * scale;
   
-  ctx.drawImage(sprite, drawX, drawY, drawW, drawH);
+  // Add a subtle shadow under Magnus
+  ctx.save();
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+  ctx.beginPath();
+  ctx.ellipse(magnus.x, magnus.y + 5, drawW * 0.4, drawH * 0.1, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  
+  // Draw Magnus with slight bounce animation when chasing
+  let bounceY = 0;
+  if (magnus.state === 'chasing') {
+    bounceY = Math.sin(magnus.frameTimer * 15) * 3;
+  }
+  
+  ctx.drawImage(sprite, drawX, drawY + bounceY, drawW, drawH);
+  
+  // Draw hearts/particles when he's about to give puppy kisses
+  if (magnus.state === 'chasing' && magnus.x > player.x - 150 && !magnus.hasLicked) {
+    ctx.save();
+    ctx.globalAlpha = 0.6 + Math.sin(magnus.frameTimer * 10) * 0.2;
+    ctx.font = '20px Arial';
+    ctx.fillStyle = '#FF69B4';
+    ctx.fillText('❤', magnus.x + drawW * 0.3, magnus.y - drawH * 0.8);
+    ctx.restore();
+  }
 }
 
 function updateConfetti(dt) {
