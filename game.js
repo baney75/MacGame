@@ -473,14 +473,15 @@ const magnus = {
   width: 160,
   height: 120,
   active: false,
-  state: 'idle', // idle, chasing, tired
+  state: 'idle', // idle, chasing, tired, happy
   chaseTimer: 0,
   tiredTimer: 0,
+  happyTimer: 0,
   frame: 0,
   frameTimer: 0,
   velocity: 0,
   acceleration: 400,
-  maxSpeed: 250,
+  maxSpeed: 280, // Slightly faster max speed
   barkTimer: 0,
   visible: false,
   hasLicked: false,
@@ -679,6 +680,7 @@ function resetGame() {
   magnus.hasLicked = false;
   magnus.chaseTimer = 0;
   magnus.tiredTimer = 0;
+  magnus.happyTimer = 0;
   magnus.velocity = 0;
   magnus.x = -200;
 
@@ -770,6 +772,7 @@ function setupLevel(level, resetScore) {
   magnus.hasLicked = false;
   magnus.chaseTimer = 0;
   magnus.tiredTimer = 0;
+  magnus.happyTimer = 0;
   magnus.velocity = 0;
   magnus.x = -200;
 
@@ -995,10 +998,31 @@ function updateMagnus(dt) {
       
       // End chase after timer or if he licked you
       if (magnus.chaseTimer <= 0 || magnus.hasLicked) {
-        magnus.state = 'tired';
-        magnus.tiredTimer = 3.0;
-        magnus.velocity = 0;
-        if (!magnus.hasLicked) showToast("Magnus is tired...");
+        if (magnus.hasLicked) {
+          // Happy transition when he gave kisses
+          magnus.state = 'happy';
+          magnus.happyTimer = 2.5;
+          showToast("Magnus is happy! ❤️");
+        } else {
+          magnus.state = 'tired';
+          magnus.tiredTimer = 2.0;
+          magnus.velocity = 0;
+          showToast("Magnus is tired...");
+        }
+      }
+      break;
+      
+    case 'happy':
+      // Happy/excited state after giving puppy kisses
+      magnus.happyTimer -= dt;
+      magnus.velocity *= 0.95; // Slow down gradually
+      magnus.x += magnus.velocity * dt;
+      magnus.x = Math.max(-100, magnus.x - 30 * dt); // Slowly move off screen
+      
+      if (magnus.happyTimer <= 0) {
+        magnus.state = 'idle';
+        magnus.visible = false;
+        magnus.hasLicked = false;
       }
       break;
       
@@ -1022,11 +1046,11 @@ function triggerMagnusChase() {
   if (magnus.state !== 'idle') return;
   
   magnus.state = 'chasing';
-  magnus.chaseTimer = 8.0 + Math.random() * 4.0; // Chase for 8-12 seconds
+  magnus.chaseTimer = 12.0 + Math.random() * 5.0; // Chase for 12-17 seconds (more screen time!)
   magnus.visible = true;
   magnus.hasLicked = false;
-  magnus.x = -50; // Start just off-screen left for natural entry
-  magnus.velocity = state.speed * 0.7; // Start with some momentum
+  magnus.x = -80; // Start further off-screen for dramatic entrance
+  magnus.velocity = state.speed * 0.5; // Start with moderate momentum
   showToast("🐕 MAGNUS IS COMING!");
 }
 
@@ -1034,31 +1058,49 @@ function drawMagnus() {
   if (!magnus.visible) return;
   
   let sprite;
-  let animationSpeed = 8; // frames per second
+  let animationSpeed = 12; // Increased for smoother animation
+  let rotation = 0;
+  let scaleX = 1;
+  let scaleY = 1;
   
   switch (magnus.state) {
     case 'chasing':
-      // Use running animation with all 4 frames
+      // Smooth running animation with easing
       const runFrames = sprites.magnus_run;
       if (runFrames && runFrames.length) {
-        // Animate based on velocity - faster when running fast
-        const speedFactor = Math.max(0.5, magnus.velocity / 200);
-        const frameIndex = Math.floor(magnus.frameTimer * animationSpeed * speedFactor) % runFrames.length;
+        const speedFactor = Math.max(0.6, magnus.velocity / 180);
+        // Use smooth interpolation between frames
+        const rawFrame = magnus.frameTimer * animationSpeed * speedFactor;
+        const frameIndex = Math.floor(rawFrame) % runFrames.length;
         sprite = runFrames[frameIndex];
       }
       break;
       
+    case 'happy':
+      // Happy/jumping animation using jump sprites
+      const jumpFrames = sprites.magnus_jump;
+      if (jumpFrames && jumpFrames.length) {
+        const happyCycle = (magnus.frameTimer * 5) % 2;
+        const frameIndex = Math.floor(happyCycle);
+        sprite = jumpFrames[frameIndex];
+      }
+      break;
+      
     case 'tired':
-      // Use tired sprite
+      // Tired sprite with slight breathing animation
       const tiredFrames = sprites.magnus_tired;
       if (tiredFrames && tiredFrames.length) {
         sprite = tiredFrames[0];
+        // Subtle breathing scale
+        const breathe = 1 + Math.sin(magnus.frameTimer * 2) * 0.02;
+        scaleY = breathe;
+        scaleX = 1 + (1 - breathe) * 0.5; // Squish slightly when breathing
       }
       break;
       
     case 'idle':
     default:
-      // Use idle animation (single sprite for now, or could animate if more frames added)
+      // Idle animation with subtle movement
       const idleFrames = sprites.magnus_idle;
       if (idleFrames && idleFrames.length) {
         sprite = idleFrames[0];
@@ -1071,7 +1113,7 @@ function drawMagnus() {
     if (sprites.magnus_idle && sprites.magnus_idle.length) {
       sprite = sprites.magnus_idle[0];
     } else {
-      return; // No sprite available
+      return;
     }
   }
   
@@ -1083,34 +1125,83 @@ function drawMagnus() {
   };
   
   const scale = magnus.height / meta.height;
-  const drawX = magnus.x - meta.centerX * scale;
-  const drawY = magnus.y - meta.footY * scale;
-  const drawW = meta.width * scale;
-  const drawH = meta.height * scale;
+  const drawX = magnus.x - meta.centerX * scale * scaleX;
+  const drawY = magnus.y - meta.footY * scale * scaleY;
+  const drawW = meta.width * scale * scaleX;
+  const drawH = meta.height * scale * scaleY;
   
-  // Add a subtle shadow under Magnus
+  // Enhanced shadow under Magnus
   ctx.save();
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
   ctx.beginPath();
-  ctx.ellipse(magnus.x, magnus.y + 5, drawW * 0.4, drawH * 0.1, 0, 0, Math.PI * 2);
+  const shadowScale = magnus.state === 'happy' ? 0.6 : 1; // Smaller shadow when jumping
+  ctx.ellipse(magnus.x, magnus.y + 8, drawW * 0.35 * shadowScale, drawH * 0.08 * shadowScale, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
   
-  // Draw Magnus with slight bounce animation when chasing
+  // Calculate bounce based on state
   let bounceY = 0;
+  let rotation = 0;
+  
   if (magnus.state === 'chasing') {
-    bounceY = Math.sin(magnus.frameTimer * 15) * 3;
+    // Smooth galloping bounce
+    bounceY = Math.sin(magnus.frameTimer * 12) * 4;
+    // Slight tilt based on velocity
+    rotation = Math.sin(magnus.frameTimer * 8) * 0.05;
+  } else if (magnus.state === 'happy') {
+    // Happy bouncing
+    bounceY = -Math.abs(Math.sin(magnus.frameTimer * 8) * 15);
+    rotation = Math.sin(magnus.frameTimer * 6) * 0.1;
+  }
+  
+  // Draw Magnus with rotation if applicable
+  if (rotation !== 0) {
+    ctx.save();
+    ctx.translate(magnus.x, magnus.y + bounceY);
+    ctx.rotate(rotation);
+    ctx.translate(-magnus.x, -(magnus.y + bounceY));
   }
   
   ctx.drawImage(sprite, drawX, drawY + bounceY, drawW, drawH);
   
-  // Draw hearts/particles when he's about to give puppy kisses
-  if (magnus.state === 'chasing' && magnus.x > player.x - 150 && !magnus.hasLicked) {
+  if (rotation !== 0) {
+    ctx.restore();
+  }
+  
+  // Draw RED hearts when approaching for puppy kisses
+  if (magnus.state === 'chasing' && magnus.x > player.x - 180 && !magnus.hasLicked) {
+    const proximity = (magnus.x - (player.x - 180)) / 180; // 0 to 1
+    const heartCount = 2 + Math.floor(proximity * 2); // More hearts as he gets closer
+    
     ctx.save();
-    ctx.globalAlpha = 0.6 + Math.sin(magnus.frameTimer * 10) * 0.2;
-    ctx.font = '20px Arial';
-    ctx.fillStyle = '#FF69B4';
-    ctx.fillText('❤', magnus.x + drawW * 0.3, magnus.y - drawH * 0.8);
+    ctx.font = '24px Arial';
+    
+    for (let i = 0; i < heartCount; i++) {
+      const offsetX = Math.sin(magnus.frameTimer * 3 + i) * 20;
+      const offsetY = Math.cos(magnus.frameTimer * 4 + i) * 10;
+      const alpha = 0.5 + Math.sin(magnus.frameTimer * 8 + i) * 0.3;
+      const scale = 0.8 + Math.sin(magnus.frameTimer * 6 + i) * 0.3;
+      
+      ctx.globalAlpha = alpha * proximity;
+      ctx.fillStyle = '#FF0000'; // RED hearts!
+      ctx.font = `${Math.floor(24 * scale)}px Arial`;
+      ctx.fillText('❤', magnus.x + drawW * 0.2 + offsetX + (i * 25), magnus.y - drawH * 0.7 + offsetY);
+    }
+    ctx.restore();
+  }
+  
+  // Draw happy particles when in happy state
+  if (magnus.state === 'happy') {
+    ctx.save();
+    ctx.globalAlpha = 0.7;
+    ctx.font = '18px Arial';
+    ctx.fillStyle = '#FFD700'; // Gold sparkles
+    
+    for (let i = 0; i < 3; i++) {
+      const sparkleX = magnus.x + Math.sin(magnus.frameTimer * 5 + i) * 40;
+      const sparkleY = magnus.y - drawH * 0.5 + Math.cos(magnus.frameTimer * 4 + i) * 30;
+      ctx.fillText('✨', sparkleX, sparkleY);
+    }
     ctx.restore();
   }
 }
@@ -1398,17 +1489,17 @@ function updateScore(dt) {
     state.fun = Math.min(100, state.fun + dt * state.combo * 0.35);
   }
   
-  // Magnus chase mechanic - triggers periodically
+  // Magnus chase mechanic - triggers more frequently for more screen time
   if (!magnus.active) {
     magnus.active = true;
-    // Trigger Magnus every 400-800 distance units
-    magnus.nextTrigger = 400 + Math.random() * 400;
+    // Trigger Magnus more often: every 250-450 distance units
+    magnus.nextTrigger = 250 + Math.random() * 200;
   }
   
   if (magnus.state === 'idle' && state.distance > magnus.nextTrigger) {
     triggerMagnusChase();
-    // Schedule next chase
-    magnus.nextTrigger = state.distance + 500 + Math.random() * 600;
+    // Schedule next chase sooner: 300-600 distance units
+    magnus.nextTrigger = state.distance + 300 + Math.random() * 300;
   }
 }
 
