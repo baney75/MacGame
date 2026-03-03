@@ -1790,15 +1790,23 @@ function togglePause() {
 function startIfNeeded() {
   if (state.awaitingNextLevel) {
     state.awaitingNextLevel = false;
-    setupLevel(state.level + 1, false);
+    const nextLevel = state.level + 1;
+    setupLevel(nextLevel, false);
     state.running = true;
+    state.paused = false;
+    state.gameOver = false;
     updateLivesDisplay();
     hideAllMenus();
     showHUD();
+    if (musicEnabled) startMusic();
     return true;
   }
   if (!state.running && pauseMenu && !pauseMenu.classList.contains("hidden")) {
     // We're on pause menu, don't start
+    return false;
+  }
+  // Don't restart if we're on level complete menu
+  if (!state.running && levelComplete && !levelComplete.classList.contains("hidden")) {
     return false;
   }
   if (!state.running) {
@@ -1882,6 +1890,8 @@ window.addEventListener("keydown", (event) => {
     // Only allow restart if game is not running AND we're not mid-game
     // Require 500ms after game over to prevent accidental restarts from held keys
     if (!state.running && !state.paused) {
+      // Don't restart if we're awaiting next level
+      if (state.awaitingNextLevel) return;
       if (state.gameOver && (performance.now() - state.gameOverTime) < 500) return;
       resetGame();
       return;
@@ -1896,6 +1906,22 @@ window.addEventListener("keydown", (event) => {
 
   if (event.code === "KeyP") {
     togglePause();
+  }
+  
+  // Press Enter to advance to next level when on level complete screen
+  if (event.code === "Enter" && state.awaitingNextLevel) {
+    event.preventDefault();
+    initAudio();
+    state.awaitingNextLevel = false;
+    const nextLevel = state.level + 1;
+    setupLevel(nextLevel, false);
+    state.running = true;
+    state.paused = false;
+    state.gameOver = false;
+    updateLivesDisplay();
+    hideAllMenus();
+    showHUD();
+    if (musicEnabled) startMusic();
   }
 });
 
