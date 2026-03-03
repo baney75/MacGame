@@ -307,7 +307,8 @@ const LEVEL_BASE_LENGTH = 2500;
 const LEVEL_LENGTH_STEP = 400;
 
 const LEVEL_NAMES = [
-  "Sunrise Sprint",
+  "Donovan's Landing",
+  "Magnus's Chase",
   "Neon Harbor",
   "Skyline Bounce",
   "Turbo Plaza",
@@ -444,6 +445,31 @@ const orbs = [];
 const particles = [];
 const floatingTexts = []; // Floating score popups
 const confetti = []; // Celebration confetti
+
+// Magnus the English Mastiff chase mechanic
+const magnus = {
+  x: -200,
+  y: groundY,
+  width: 220,
+  height: 280,
+  active: false,
+  state: 'idle', // idle, chasing, tired
+  chaseTimer: 0,
+  tiredTimer: 0,
+  frame: 0,
+  frameTimer: 0,
+  velocity: 0,
+  acceleration: 800,
+  maxSpeed: 400,
+  barkTimer: 0,
+  visible: false,
+};
+
+const magnusSprites = {
+  idle: ['sprites/magnus_idle_1.png', 'sprites/magnus_idle_2.png'],
+  run: ['sprites/magnus_run_1.png', 'sprites/magnus_run_2.png', 'sprites/magnus_run_3.png', 'sprites/magnus_run_4.png'],
+  tired: ['sprites/magnus_tired.png'],
+};
 
 // Canvas scaling with letterboxing for proper aspect ratio
 let canvasScale = 1;
@@ -617,6 +643,15 @@ function resetGame() {
   player.jumpBuffer = 0;
   player.coyoteTimer = 0;
 
+  // Reset Magnus
+  magnus.state = 'idle';
+  magnus.visible = false;
+  magnus.active = false;
+  magnus.chaseTimer = 0;
+  magnus.tiredTimer = 0;
+  magnus.velocity = 0;
+  magnus.x = -300;
+
   setupLevel(1, true);
   updateLivesDisplay();
 
@@ -698,6 +733,14 @@ function setupLevel(level, resetScore) {
   particles.length = 0;
   floatingTexts.length = 0;
   confetti.length = 0;
+
+  // Reset Magnus when changing levels
+  magnus.state = 'idle';
+  magnus.visible = false;
+  magnus.chaseTimer = 0;
+  magnus.tiredTimer = 0;
+  magnus.velocity = 0;
+  magnus.x = -300;
 
   if (resetScore) {
     state.score = 0;
@@ -871,6 +914,170 @@ function addConfetti(x, y, count = 30) {
       life: 2 + Math.random(),
     });
   }
+}
+
+function updateMagnus(dt) {
+  if (!magnus.active) return;
+  
+  magnus.frameTimer += dt;
+  magnus.barkTimer -= dt;
+  
+  // Animation frame switching
+  if (magnus.frameTimer >= 0.15) {
+    magnus.frame = (magnus.frame + 1) % 4;
+    magnus.frameTimer = 0;
+  }
+  
+  switch (magnus.state) {
+    case 'chasing':
+      // Accelerate towards player
+      const targetX = player.x - 180; // Stay slightly behind
+      const dx = targetX - magnus.x;
+      magnus.velocity += magnus.acceleration * dt;
+      magnus.velocity = Math.min(magnus.velocity, magnus.maxSpeed);
+      
+      magnus.x += magnus.velocity * dt;
+      
+      // Chase timer
+      magnus.chaseTimer -= dt;
+      
+      // Random barks during chase
+      if (magnus.barkTimer <= 0 && Math.random() < 0.02) {
+        showToast("WOOF!");
+        magnus.barkTimer = 2.0;
+      }
+      
+      // End chase after timer
+      if (magnus.chaseTimer <= 0) {
+        magnus.state = 'tired';
+        magnus.tiredTimer = 3.0;
+        magnus.velocity = 0;
+        showToast("Magnus is tired...");
+      }
+      break;
+      
+    case 'tired':
+      magnus.tiredTimer -= dt;
+      if (magnus.tiredTimer <= 0) {
+        magnus.state = 'idle';
+        magnus.visible = false;
+        showToast("Magnus is resting");
+      }
+      break;
+      
+    case 'idle':
+      // Hidden off-screen
+      magnus.x = player.x - 400;
+      break;
+  }
+  
+  // Ensure Magnus doesn't go past player
+  if (magnus.x > player.x - 100) {
+    magnus.x = player.x - 100;
+  }
+}
+
+function triggerMagnusChase() {
+  if (magnus.state !== 'idle') return;
+  
+  magnus.state = 'chasing';
+  magnus.chaseTimer = 8.0 + Math.random() * 4.0; // Chase for 8-12 seconds
+  magnus.visible = true;
+  magnus.x = -300; // Start off-screen
+  magnus.velocity = state.speed;
+  showToast("MAGNUS IS COMING!");
+}
+
+function drawMagnus() {
+  if (!magnus.visible || magnus.state === 'idle') return;
+  
+  // Draw Magnus as a large dog silhouette
+  ctx.save();
+  ctx.translate(magnus.x, magnus.y);
+  
+  // Dog body (English Mastiff - large and muscular)
+  ctx.fillStyle = '#3d2817'; // Dark brown
+  
+  // Body
+  ctx.beginPath();
+  ctx.ellipse(0, -magnus.height * 0.5, magnus.width * 0.5, magnus.height * 0.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Head (large and blocky)
+  ctx.beginPath();
+  ctx.ellipse(magnus.width * 0.25, -magnus.height * 0.75, magnus.width * 0.35, magnus.height * 0.3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Ears
+  ctx.beginPath();
+  ctx.ellipse(magnus.width * 0.15, -magnus.height * 0.9, magnus.width * 0.15, magnus.height * 0.15, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(magnus.width * 0.35, -magnus.height * 0.9, magnus.width * 0.15, magnus.height * 0.15, 0.3, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Eyes (glowing when chasing)
+  if (magnus.state === 'chasing') {
+    ctx.fillStyle = '#ff3333';
+    ctx.beginPath();
+    ctx.arc(magnus.width * 0.3, -magnus.height * 0.78, 8, 0, Math.PI * 2);
+    ctx.arc(magnus.width * 0.4, -magnus.height * 0.78, 8, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Red glow effect
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#ff0000';
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+    ctx.beginPath();
+    ctx.arc(magnus.width * 0.35, -magnus.height * 0.78, 25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  } else {
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(magnus.width * 0.3, -magnus.height * 0.78, 6, 0, Math.PI * 2);
+    ctx.arc(magnus.width * 0.4, -magnus.height * 0.78, 6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  // Legs (animated when running)
+  if (magnus.state === 'chasing') {
+    const legOffset = Math.sin(magnus.frameTimer * 20) * 10;
+    ctx.fillStyle = '#2d1f12';
+    // Front legs
+    ctx.fillRect(magnus.width * 0.1 + legOffset, -magnus.height * 0.3, 25, 80);
+    ctx.fillRect(magnus.width * 0.3 - legOffset, -magnus.height * 0.3, 25, 80);
+    // Back legs
+    ctx.fillRect(-magnus.width * 0.2 + legOffset, -magnus.height * 0.3, 25, 80);
+    ctx.fillRect(-magnus.width * 0.05 - legOffset, -magnus.height * 0.3, 25, 80);
+  } else {
+    // Static legs when tired
+    ctx.fillStyle = '#2d1f12';
+    ctx.fillRect(magnus.width * 0.1, -magnus.height * 0.3, 25, 70);
+    ctx.fillRect(magnus.width * 0.3, -magnus.height * 0.3, 25, 70);
+    ctx.fillRect(-magnus.width * 0.2, -magnus.height * 0.3, 25, 70);
+    ctx.fillRect(-magnus.width * 0.05, -magnus.height * 0.3, 25, 70);
+  }
+  
+  // Tail
+  ctx.strokeStyle = '#3d2817';
+  ctx.lineWidth = 15;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  const tailWag = magnus.state === 'chasing' ? Math.sin(magnus.frameTimer * 15) * 15 : 0;
+  ctx.moveTo(-magnus.width * 0.4, -magnus.height * 0.4);
+  ctx.quadraticCurveTo(-magnus.width * 0.6, -magnus.height * 0.5 + tailWag, -magnus.width * 0.55, -magnus.height * 0.3);
+  ctx.stroke();
+  
+  // Tongue out when tired
+  if (magnus.state === 'tired') {
+    ctx.fillStyle = '#ff6b6b';
+    ctx.beginPath();
+    ctx.ellipse(magnus.width * 0.45, -magnus.height * 0.65, 15, 8, 0.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  ctx.restore();
 }
 
 function updateConfetti(dt) {
@@ -1148,6 +1355,19 @@ function updateScore(dt) {
   if (state.combo > 1) {
     state.fun = Math.min(100, state.fun + dt * state.combo * 0.35);
   }
+  
+  // Magnus chase mechanic - triggers periodically
+  if (!magnus.active) {
+    magnus.active = true;
+    // Trigger Magnus every 400-800 distance units
+    magnus.nextTrigger = 400 + Math.random() * 400;
+  }
+  
+  if (magnus.state === 'idle' && state.distance > magnus.nextTrigger) {
+    triggerMagnusChase();
+    // Schedule next chase
+    magnus.nextTrigger = state.distance + 500 + Math.random() * 600;
+  }
 }
 
 function updateGame(dt) {
@@ -1162,6 +1382,7 @@ function updateGame(dt) {
   updateFloatingTexts(dt);
   updateConfetti(dt);
   updateScore(dt);
+  updateMagnus(dt);
   
   // Update combo timer
   if (state.comboTimer > 0) {
@@ -1176,7 +1397,7 @@ function updateGame(dt) {
     state.hitFlash -= dt * 2;
   }
 
-  if (state.distance >= state.levelTarget) {
+  if (state.distance >= state.levelTarget && !state.awaitingNextLevel) {
     completeLevel();
     return;
   }
@@ -1198,6 +1419,41 @@ function updateGame(dt) {
       collectOrb(orb);
     }
   });
+  
+  // Check collision with Magnus
+  if (magnus.visible && magnus.state === 'chasing') {
+    const magnusBox = {
+      x: magnus.x + 20,
+      y: magnus.y - magnus.height + 20,
+      width: magnus.width - 40,
+      height: magnus.height - 40
+    };
+    
+    if (rectsOverlap(playerBox, magnusBox)) {
+      // Magnus catches you! Take damage
+      if (player.invincible <= 0) {
+        state.health -= 2; // Magnus hits hard!
+        state.combo = 1;
+        state.comboTimer = 0;
+        player.hurtTimer = 0.6;
+        player.invincible = 2.0;
+        state.shake = 0.8;
+        state.hitFlash = 0.5;
+        showToast("MAGNUS GOT YOU!");
+        playHurtSound();
+        updateLivesDisplay();
+        
+        // Magnus gets tired after catching you
+        magnus.state = 'tired';
+        magnus.tiredTimer = 4.0;
+        magnus.velocity = 0;
+        
+        if (state.health <= 0) {
+          endGame();
+        }
+      }
+    }
+  }
 
   const baseSpeed = 260 + (state.level - 1) * 16;
   state.speed = baseSpeed + Math.min(160, state.score * 0.12) + state.combo * 2;
@@ -1379,6 +1635,7 @@ function render() {
   }
 
   drawBackground();
+  drawMagnus(); // Draw Magnus behind player
   drawProgressBar();
   drawOrbs();
   drawObstacles();
