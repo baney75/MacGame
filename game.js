@@ -1141,7 +1141,7 @@ function drawMagnus() {
   
   // Calculate bounce based on state
   let bounceY = 0;
-  let rotation = 0;
+  rotation = 0;
   
   if (magnus.state === 'chasing') {
     // Smooth galloping bounce
